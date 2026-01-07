@@ -1,5 +1,6 @@
-﻿. "$PSScriptRoot\..\lib\logging.ps1"
-param()
+﻿param()
+
+. "$PSScriptRoot\..\lib\logging.ps1"
 
 $Log = New-SSLog -Name "solidstack-status"
 Write-SSLog $Log "SolidStack status (v2) starting" "INFO"
@@ -9,7 +10,7 @@ $found = @{}
 foreach ($t in $tools) {
   $c = Get-Command $t -ErrorAction SilentlyContinue
   if ($c) { Write-SSLog $Log "FOUND: $t => $($c.Source)" "OK"; $found[$t]=$true }
-  else     { Write-SSLog $Log "MISSING: $t" "WARN"; $found[$t]=$false }
+  else     { Write-SSLog $Log "MISSING: $t" "WARN"; $found[$t]=$false }      
 }
 
 # Docker server version (best effort)
