@@ -1,54 +1,99 @@
-﻿param()
+#!/usr/bin/env pwsh
+# SolidStack Status Command
+# Cross-platform system status check
 
+param()
+
+# Import libraries
+. "$PSScriptRoot\..\lib\platform.ps1"
 . "$PSScriptRoot\..\lib\logging.ps1"
 
+# Create log
 $Log = New-SSLog -Name "solidstack-status"
-Write-SSLog $Log "SolidStack status (v2) starting" "INFO"
+Write-SSLog $Log "SolidStack status check starting" "INFO"
+Write-SSLog $Log "OS: $(Get-SolidStackOS)" "INFO"
+Write-SSLog $Log "PowerShell: $($PSVersionTable.PSVersion)" "INFO"
 
-$tools = @('docker','op','rclone','git','gh')
+# Check tools
+$tools = @('docker', 'git', 'op', 'rclone', 'gh')
 $found = @{}
-foreach ($t in $tools) {
-  $c = Get-Command $t -ErrorAction SilentlyContinue
-  if ($c) { Write-SSLog $Log "FOUND: $t => $($c.Source)" "OK"; $found[$t]=$true }
-  else     { Write-SSLog $Log "MISSING: $t" "WARN"; $found[$t]=$false }      
+
+foreach ($tool in $tools) {
+    if (Test-SolidStackCommand $tool) {
+        $path = Get-SolidStackCommandPath $tool
+        Write-SSLog $Log "FOUND: $tool => $path" "OK"
+        $found[$tool] = $true
+    } else {
+        Write-SSLog $Log "MISSING: $tool" "WARN"
+        $found[$tool] = $false
+    }
 }
 
-# Docker server version (best effort)
-try {
-  $dv = docker version --format '{{.Server.Version}}' 2>$null
-  if ($dv) { Write-SSLog $Log "Docker Server: $dv" "OK" }
-} catch {}
+# Docker version check (if available)
+if ($found['docker']) {
+    try {
+        $dockerVersion = docker version --format '{{.Server.Version}}' 2>$null
+        if ($dockerVersion) {
+            Write-SSLog $Log "Docker Server: $dockerVersion" "OK"
+        }
+    } catch {
+        Write-SSLog $Log "Could not get Docker version" "WARN"
+    }
+}
 
-# 1Password signed in (best effort)
-try {
-  op account list *> $null
-  if ($LASTEXITCODE -eq 0) { Write-SSLog $Log "1Password CLI: signed in" "OK" }
-  else { Write-SSLog $Log "1Password CLI: not signed in" "WARN" }
-} catch {}
+# 1Password CLI check (if available)
+if ($found['op']) {
+    try {
+        op account list *>$null
+        if ($LASTEXITCODE -eq 0) {
+            Write-SSLog $Log "1Password CLI: signed in" "OK"
+        } else {
+            Write-SSLog $Log "1Password CLI: not signed in" "WARN"
+        }
+    } catch {
+        Write-SSLog $Log "1Password CLI: could not check status" "WARN"
+    }
+}
 
-# Write report
-$ts = Get-Date -Format 'yyyyMMdd-HHmmss'
-$Report = "C:\SolidStack\reports\status-$ts.txt"
+# Generate report
+$timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$reportsDir = Get-SolidStackReportsPath
+New-Item -ItemType Directory -Force -Path $reportsDir | Out-Null
+$reportPath = Join-Path $reportsDir "status-$timestamp.txt"
 
-@(
-  "SOLIDSTACK STATUS REPORT (v2)"
-  "Time:  $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
-  "Root:  C:\SolidStack"
-  "Log:   $Log"
-  ""
-  "Tools:"
-  " - docker:  $([bool]$found['docker'])"
-  " - op:      $([bool]$found['op'])"
-  " - rclone:  $([bool]$found['rclone'])"
-  " - git:     $([bool]$found['git'])"
-  " - gh:      $([bool]$found['gh'])"
-) | Set-Content -Encoding UTF8 $Report
+$reportContent = @(
+    "SOLIDSTACK STATUS REPORT"
+    "========================"
+    ""
+    "Time:    $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    "OS:      $(Get-SolidStackOS)"
+    "Root:    $(Get-SolidStackRoot)"
+    "Log:     $Log"
+    ""
+    "PowerShell:"
+    " - Version: $($PSVersionTable.PSVersion)"
+    " - Edition: $($PSVersionTable.PSEdition)"
+    ""
+    "Tools:"
+    " - docker:  $($found['docker'])"
+    " - git:     $($found['git'])"
+    " - op:      $($found['op'])"
+    " - rclone:  $($found['rclone'])"
+    " - gh:      $($found['gh'])"
+    ""
+    "Package Manager: $(Get-SolidStackPackageManager)"
+)
 
-Write-SSLog $Log "Wrote report: $Report" "OK"
-Write-SSLog $Log "Status complete." "OK"
+$reportContent | Set-Content -Path $reportPath -Encoding UTF8
 
-Write-Host "`n--- REPORT: $Report ---"
-Get-Content $Report
-Write-Host "--- END REPORT ---"
+Write-SSLog $Log "Wrote report: $reportPath" "OK"
+Write-SSLog $Log "Status check complete" "OK"
 
+# Display report
+Write-Host ""
+Write-Host "--- REPORT: $reportPath ---" -ForegroundColor Green
+Get-Content $reportPath
+Write-Host "--- END REPORT ---" -ForegroundColor Green
+
+# Show log tail
 Show-SSTail -LogFile $Log -Lines 200

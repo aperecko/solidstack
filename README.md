@@ -7,7 +7,27 @@
 
 ## What is SolidStack?
 
-SolidStack is a PowerShell-based command-line tool for managing self-hosted Docker services on Windows Server. It's designed with traceability in mind - every command logs its actions, making it easy to understand what happened and when.
+SolidStack is a **PowerShell-based control plane** for managing self-hosted Docker services on Windows Server. It's the layer between you and Docker that makes everything traceable and manageable.
+
+**Think of it as:**
+- The conductor for your Docker orchestra
+- Infrastructure-as-code for Windows self-hosting
+- A docker-compose wrapper with logging, conventions, and safety
+
+**Architecture:**
+```
+Windows Server (bare metal)
+├─ Docker Desktop (container runtime)
+├─ PowerShell 7+ (scripting layer)
+└─ SolidStack (control plane) ← You are here
+     │
+     └─ Manages containers below:
+         ├─ Traefik (proxy)
+         ├─ Portainer (UI)
+         └─ Your services (apps, databases, etc)
+```
+
+**SolidStack itself does NOT run in Docker** - it's the native Windows layer that orchestrates everything else. See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for details.
 
 **Perfect for:**
 - Non-programmers who want to self-host services
