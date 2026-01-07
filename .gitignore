@@ -1,0 +1,28 @@
+# Runtime and generated files (not in Git)
+stack/logs/
+stack/data/
+stack/secrets/
+reports/
+.tmp.drivedownload/
+.tmp.driveupload/
+
+# Backup files
+*.bak
+*.bak-*
+*.tmp
+*.log
+
+# OS files
+desktop.ini
+.DS_Store
+Thumbs.db
+*~
+
+# Personal notes (optional)
+PERSONAL-NOTES.md
+SCRATCH.md
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
