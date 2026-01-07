@@ -11,7 +11,7 @@ Write-Host ""
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
 if (-not $isAdmin) {
-    Write-Host "⚠️  Not running as Administrator" -ForegroundColor Yellow
+    Write-Host "WARNING: Not running as Administrator" -ForegroundColor Yellow
     Write-Host "Some installations may require admin rights" -ForegroundColor Yellow
     Write-Host ""
 }
@@ -31,15 +31,15 @@ Write-Host "  Checking for winget package manager..." -ForegroundColor White
 $winget = Get-Command winget -ErrorAction SilentlyContinue
 
 if (-not $winget) {
-    Write-Host "  ❌ winget not found" -ForegroundColor Red
-    Write-Host "  ℹ️  winget is required to install prerequisites" -ForegroundColor Cyan
-    Write-Host "  📥 Install from: https://aka.ms/getwinget" -ForegroundColor White
+    Write-Host "  X winget not found" -ForegroundColor Red
+    Write-Host "  INFO: winget is required to install prerequisites" -ForegroundColor Cyan
+    Write-Host "  Install from: https://aka.ms/getwinget" -ForegroundColor White
     Write-Host ""
     Write-Host "  After installing winget, run this installer again." -ForegroundColor Yellow
     Read-Host "Press Enter to exit"
     exit 1
 } else {
-    Write-Host "  ✅ winget found" -ForegroundColor Green
+    Write-Host "  OK: winget found" -ForegroundColor Green
 }
 
 # Check for PowerShell 7+
@@ -47,23 +47,23 @@ Write-Host "  Checking for PowerShell 7+..." -ForegroundColor White
 $pwshPath = Get-Command pwsh -ErrorAction SilentlyContinue
 
 if (-not $pwshPath) {
-    Write-Host "  ❌ PowerShell 7+ not found" -ForegroundColor Red
-    Write-Host "  📥 Installing PowerShell 7..." -ForegroundColor Cyan
+    Write-Host "  X PowerShell 7+ not found" -ForegroundColor Red
+    Write-Host "  Installing PowerShell 7..." -ForegroundColor Cyan
     
     try {
         winget install --id Microsoft.Powershell --source winget --silent --accept-package-agreements --accept-source-agreements
-        Write-Host "  ✅ PowerShell 7 installed" -ForegroundColor Green
+        Write-Host "  OK: PowerShell 7 installed" -ForegroundColor Green
         $needsRestart = $true
         $prerequisitesInstalled += "PowerShell 7"
     } catch {
-        Write-Host "  ❌ Failed to install PowerShell 7" -ForegroundColor Red
+        Write-Host "  X Failed to install PowerShell 7" -ForegroundColor Red
         Write-Host "  Please install manually from: https://github.com/PowerShell/PowerShell/releases" -ForegroundColor Yellow
         Read-Host "Press Enter to exit"
         exit 1
     }
 } else {
     $pwshVersion = & pwsh -Command '$PSVersionTable.PSVersion.ToString()'
-    Write-Host "  ✅ PowerShell 7+ found (v$pwshVersion)" -ForegroundColor Green
+    Write-Host "  OK: PowerShell 7+ found (v$pwshVersion)" -ForegroundColor Green
 }
 
 # Check for Git
@@ -71,12 +71,12 @@ Write-Host "  Checking for Git..." -ForegroundColor White
 $gitPath = Get-Command git -ErrorAction SilentlyContinue
 
 if (-not $gitPath) {
-    Write-Host "  ❌ Git not found" -ForegroundColor Red
-    Write-Host "  📥 Installing Git..." -ForegroundColor Cyan
+    Write-Host "  X Git not found" -ForegroundColor Red
+    Write-Host "  Installing Git..." -ForegroundColor Cyan
     
     try {
         winget install --id Git.Git --source winget --silent --accept-package-agreements --accept-source-agreements
-        Write-Host "  ✅ Git installed" -ForegroundColor Green
+        Write-Host "  OK: Git installed" -ForegroundColor Green
         
         # Refresh PATH for current session
         $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
@@ -84,14 +84,14 @@ if (-not $gitPath) {
         $needsRestart = $true
         $prerequisitesInstalled += "Git"
     } catch {
-        Write-Host "  ❌ Failed to install Git" -ForegroundColor Red
+        Write-Host "  X Failed to install Git" -ForegroundColor Red
         Write-Host "  Please install manually from: https://git-scm.com/download/win" -ForegroundColor Yellow
         Read-Host "Press Enter to exit"
         exit 1
     }
 } else {
     $gitVersion = git --version
-    Write-Host "  ✅ Git found ($gitVersion)" -ForegroundColor Green
+    Write-Host "  OK: Git found ($gitVersion)" -ForegroundColor Green
 }
 
 # Check for Docker (informational only - don't auto-install)
@@ -99,11 +99,11 @@ Write-Host "  Checking for Docker..." -ForegroundColor White
 $dockerPath = Get-Command docker -ErrorAction SilentlyContinue
 
 if (-not $dockerPath) {
-    Write-Host "  ℹ️  Docker not found (optional - needed for containers)" -ForegroundColor Yellow
-    Write-Host "     Install later from: https://www.docker.com/products/docker-desktop/" -ForegroundColor Gray
+    Write-Host "  INFO: Docker not found (optional - needed for containers)" -ForegroundColor Yellow
+    Write-Host "        Install later from: https://www.docker.com/products/docker-desktop/" -ForegroundColor Gray
 } else {
     $dockerVersion = docker --version
-    Write-Host "  ✅ Docker found ($dockerVersion)" -ForegroundColor Green
+    Write-Host "  OK: Docker found ($dockerVersion)" -ForegroundColor Green
 }
 
 Write-Host ""
@@ -111,15 +111,15 @@ Write-Host ""
 # If we installed prerequisites, inform user about restart
 if ($needsRestart) {
     Write-Host "================================" -ForegroundColor Cyan
-    Write-Host "Prerequisites Installed! ✅" -ForegroundColor Green
+    Write-Host "Prerequisites Installed! OK" -ForegroundColor Green
     Write-Host "================================" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "The following were installed:" -ForegroundColor White
     foreach ($item in $prerequisitesInstalled) {
-        Write-Host "  • $item" -ForegroundColor Green
+        Write-Host "  * $item" -ForegroundColor Green
     }
     Write-Host ""
-    Write-Host "⚠️  IMPORTANT: You must restart your terminal!" -ForegroundColor Yellow
+    Write-Host "WARNING: You must restart your terminal!" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "Steps:" -ForegroundColor Cyan
     Write-Host "  1. Close this PowerShell window" -ForegroundColor White
@@ -154,7 +154,7 @@ foreach ($dir in $directories) {
     New-Item -ItemType Directory -Force -Path $dir | Out-Null
 }
 
-Write-Host "✅ Directories created" -ForegroundColor Green
+Write-Host "OK: Directories created" -ForegroundColor Green
 Write-Host ""
 
 # ============================================================================
@@ -164,7 +164,7 @@ Write-Host ""
 Write-Host "Step 3: Cloning SolidStack from GitHub..." -ForegroundColor Yellow
 
 if (Test-Path "$root\repo") {
-    Write-Host "⚠️  Repository already exists at $root\repo" -ForegroundColor Yellow
+    Write-Host "WARNING: Repository already exists at $root\repo" -ForegroundColor Yellow
     $overwrite = Read-Host "Update to latest version? (y/n)"
     
     if ($overwrite -eq 'y') {
@@ -174,24 +174,25 @@ if (Test-Path "$root\repo") {
         Pop-Location
         
         if ($pullExitCode -eq 0) {
-            Write-Host "✅ Repository updated" -ForegroundColor Green
+            Write-Host "OK: Repository updated" -ForegroundColor Green
         } else {
-            Write-Host "❌ Failed to update repository" -ForegroundColor Red
-            Write-Host "Try: cd $root\repo && git pull" -ForegroundColor Yellow
+            Write-Host "X Failed to update repository" -ForegroundColor Red
+            Write-Host "Try manually: cd $root\repo" -ForegroundColor Yellow
+            Write-Host "Then run: git pull" -ForegroundColor Yellow
         }
     }
 } else {
     git clone https://github.com/aperecko/solidstack.git "$root\repo"
     
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "✅ Repository cloned" -ForegroundColor Green
+        Write-Host "OK: Repository cloned" -ForegroundColor Green
     } else {
-        Write-Host "❌ Failed to clone repository" -ForegroundColor Red
+        Write-Host "X Failed to clone repository" -ForegroundColor Red
         Write-Host ""
         Write-Host "This might be due to:" -ForegroundColor Yellow
-        Write-Host "  • Network connectivity issues" -ForegroundColor White
-        Write-Host "  • Git not properly installed" -ForegroundColor White
-        Write-Host "  • Repository doesn't exist yet" -ForegroundColor White
+        Write-Host "  * Network connectivity issues" -ForegroundColor White
+        Write-Host "  * Git not properly installed" -ForegroundColor White
+        Write-Host "  * Repository doesn't exist yet" -ForegroundColor White
         Write-Host ""
         Write-Host "Try manually:" -ForegroundColor Cyan
         Write-Host "  git clone https://github.com/aperecko/solidstack.git $root\repo" -ForegroundColor White
@@ -211,9 +212,9 @@ Write-Host "Step 4: Setting up runner script..." -ForegroundColor Yellow
 
 if (Test-Path "$root\repo\src\solidstack.ps1") {
     Copy-Item "$root\repo\src\solidstack.ps1" "$root\bin\solidstack.ps1" -Force
-    Write-Host "✅ Runner script installed" -ForegroundColor Green
+    Write-Host "OK: Runner script installed" -ForegroundColor Green
 } else {
-    Write-Host "⚠️  Runner script not found in repository" -ForegroundColor Yellow
+    Write-Host "WARNING: Runner script not found in repository" -ForegroundColor Yellow
     Write-Host "This might mean the repository structure has changed" -ForegroundColor Gray
 }
 
@@ -234,15 +235,15 @@ if (Test-Path "$root\bin\solidstack.ps1") {
         if ($testExitCode -eq 0) {
             Write-Host ""
             Write-Host "================================" -ForegroundColor Cyan
-            Write-Host "Installation Successful! ✅" -ForegroundColor Green
+            Write-Host "Installation Successful! OK" -ForegroundColor Green
             Write-Host "================================" -ForegroundColor Cyan
         }
     } catch {
-        Write-Host "⚠️  Test run encountered an error" -ForegroundColor Yellow
+        Write-Host "WARNING: Test run encountered an error" -ForegroundColor Yellow
         Write-Host "Error: $_" -ForegroundColor Red
     }
 } else {
-    Write-Host "⚠️  Could not test installation (runner script not found)" -ForegroundColor Yellow
+    Write-Host "WARNING: Could not test installation (runner script not found)" -ForegroundColor Yellow
 }
 
 Write-Host ""
@@ -259,14 +260,14 @@ Write-Host ""
 
 # Summary of what's installed
 Write-Host "Installed Components:" -ForegroundColor Cyan
-Write-Host "  ✅ PowerShell 7+" -ForegroundColor Green
-Write-Host "  ✅ Git" -ForegroundColor Green
+Write-Host "  OK: PowerShell 7+" -ForegroundColor Green
+Write-Host "  OK: Git" -ForegroundColor Green
 if ($dockerPath) {
-    Write-Host "  ✅ Docker" -ForegroundColor Green
+    Write-Host "  OK: Docker" -ForegroundColor Green
 } else {
-    Write-Host "  ℹ️  Docker (not installed - optional)" -ForegroundColor Yellow
+    Write-Host "  INFO: Docker (not installed - optional)" -ForegroundColor Yellow
 }
-Write-Host "  ✅ SolidStack" -ForegroundColor Green
+Write-Host "  OK: SolidStack" -ForegroundColor Green
 Write-Host ""
 
 if (-not $dockerPath) {
@@ -277,5 +278,5 @@ if (-not $dockerPath) {
     Write-Host ""
 }
 
-Write-Host "Happy deploying! 🚀" -ForegroundColor Green
+Write-Host "Happy deploying!" -ForegroundColor Green
 Write-Host ""
