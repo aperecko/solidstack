@@ -1,207 +1,222 @@
 # SolidStack
 
-> A traceable, modular self-host stack for Windows Server + Docker Desktop
+> Universal deployment platform - Available in PowerShell and Rust
 
-[![PowerShell 7+](https://img.shields.io/badge/PowerShell-7%2B-blue.svg)](https://github.com/PowerShell/PowerShell)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PowerShell](https://img.shields.io/badge/PowerShell-7%2B-blue.svg)](https://github.com/aperecko/solidstack/tree/powershell)
+[![Rust](https://img.shields.io/badge/Rust-Experimental-orange.svg)](https://github.com/aperecko/solidstack/tree/rust)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## What is SolidStack?
+---
 
-SolidStack is a **PowerShell-based control plane** for managing self-hosted Docker services on Windows Server. It's the layer between you and Docker that makes everything traceable and manageable.
+## 🎭 The Concept (Universal)
 
-**Think of it as:**
-- The conductor for your Docker orchestra
-- Infrastructure-as-code for Windows self-hosting
-- A docker-compose wrapper with logging, conventions, and safety
+**SolidStack is a control plane for Docker services - think of it as a conductor orchestrating containers.**
 
-**Architecture:**
 ```
-Windows Server (bare metal)
-├─ Docker Desktop (container runtime)
-├─ PowerShell 7+ (scripting layer)
-└─ SolidStack (control plane) ← You are here
-     │
-     └─ Manages containers below:
-         ├─ Traefik (proxy)
-         ├─ Portainer (UI)
-         └─ Your services (apps, databases, etc)
+🏛️ Server     = Concert hall (any OS)
+🎼 SolidStack = Conductor (orchestrates everything)
+🎻 Containers = Orchestra (your services)
 ```
 
-**SolidStack itself does NOT run in Docker** - it's the native Windows layer that orchestrates everything else. See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for details.
+Read more: [Theater Analogy](docs/THEATER-ANALOGY.md)
 
-**Perfect for:**
-- Non-programmers who want to self-host services
-- Learning DevOps concepts hands-on
-- Maintaining a clear audit trail of all operations
-- Getting AI assistance (all output is AI-friendly)
+---
 
-## Key Features
+## 🔀 Two Implementations
 
-- 📝 **Everything is logged** - Timestamped logs for every command
-- 🔒 **Secrets stay local** - Never accidentally commit sensitive data
-- 🧩 **Modular design** - Compose services from multiple Docker Compose files
-- 🤖 **AI-friendly** - Output designed for copy/paste to AI assistants
-- 📊 **Status reports** - Always know what's running and what's not
+We're building SolidStack in **two languages simultaneously** to:
+- Learn trade-offs between paradigms
+- Give users choice
+- Validate architecture across languages
+- Build the best tool possible
 
-## Quick Start
+### PowerShell Implementation
 
-### Prerequisites
-- Windows Server 2019+ or Windows 10/11
-- Docker Desktop
-- PowerShell 7+ (we'll help you install it)
+**Status:** ✅ Production Ready  
+**Branch:** [`powershell`](https://github.com/aperecko/solidstack/tree/powershell)
 
-### Installation
+**Best for:**
+- Windows Server environments
+- PowerShell users
+- Rich Windows integration
+- Quick modifications
 
-1. **Clone or download this repo** to `C:\SolidStack\repo`
-
-2. **Install PowerShell 7+** (if not already installed):
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File C:\SolidStack\tools\install-pwsh.ps1
-   ```
-
-3. **Close and reopen your terminal**, then verify:
-   ```powershell
-   pwsh -v
-   # Should show: PowerShell 7.x.x
-   ```
-
-4. **Run your first command**:
-   ```powershell
-   pwsh -File C:\SolidStack\bin\solidstack.ps1 status
-   ```
-
-## Usage
-
-### Basic Commands
-
+**Install:**
 ```powershell
-# Check system status
-pwsh -File C:\SolidStack\bin\solidstack.ps1 status
-
-# View latest status report
-pwsh -File C:\SolidStack\bin\solidstack.ps1 report latest
-
-# List all reports
-pwsh -File C:\SolidStack\bin\solidstack.ps1 report list
-
-# Show a specific report
-pwsh -File C:\SolidStack\bin\solidstack.ps1 report show C:\SolidStack\reports\status-20260106-123456.txt
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/aperecko/solidstack/powershell/install.ps1" -OutFile "$env:TEMP\solidstack-install.ps1"; powershell -ExecutionPolicy Bypass -File "$env:TEMP\solidstack-install.ps1"
 ```
 
-### Where Things Live
+**Requirements:**
+- PowerShell 7+ (auto-installed)
+- Windows/Linux/macOS
 
+### Rust Implementation
+
+**Status:** 🚧 Experimental (In Development)  
+**Branch:** [`rust`](https://github.com/aperecko/solidstack/tree/rust)
+
+**Best for:**
+- Minimal dependencies
+- Cross-platform deployment
+- Performance-critical scenarios
+- Single-binary distribution
+
+**Install:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/aperecko/solidstack/rust/install.sh | bash
 ```
-C:\SolidStack\
-├── bin\              # Main scripts you run
-├── repo\             # This git repository
-│   ├── src\         # Source code
-│   └── docs\        # Documentation
-├── stack\            # Runtime files (NOT in git)
-│   ├── compose\     # Docker Compose files
-│   ├── config\      # Service configurations
-│   ├── data\        # Docker volumes
-│   ├── logs\        # All command logs
-│   └── secrets\     # Sensitive files (git ignored)
-├── reports\         # Status reports
-└── tools\           # Helper tools
-```
 
-## Design Philosophy
+**Requirements:**
+- None! Single binary
 
-SolidStack follows simple rules:
+---
 
-1. **Config as code** - Everything (except secrets) is in git
-2. **Trace everything** - Every command writes a timestamped log
-3. **AI-friendly output** - Easy to copy/paste for help
-4. **Modular services** - Compose multiple Docker files together
-5. **Secrets stay local** - Never in git, ever
+## 🎯 Shared Architecture
 
-See [docs/decisions.md](repo/docs/decisions.md) for architectural decisions.
+Both implementations follow the same:
+- [Command Specifications](specs/commands.yaml)
+- [Output Format](specs/report-format.yaml)
+- [Configuration Schema](specs/config.yaml)
+- [Theater Mental Model](docs/THEATER-ANALOGY.md)
 
-## For Non-Programmers
+This means:
+- ✅ Same commands work in both
+- ✅ Compatible configuration files
+- ✅ Same output format
+- ✅ Easy to switch between them
 
-Don't worry if you're not a programmer! SolidStack is designed to be approachable:
+---
 
-- Commands are simple and explained
-- Every action is logged so you can see what happened
-- Documentation is written in plain English
-- The AI-friendly output means you can paste logs to ChatGPT/Claude for help
-- See [CONTRIBUTING.md](repo/CONTRIBUTING.md) for step-by-step guidance
+## 📚 Documentation
 
-## Documentation
+### Getting Started
+- [Quick Start Guide](docs/QUICKSTART.md)
+- [Architecture Overview](docs/ARCHITECTURE.md)
+- [Installation Guide](docs/INSTALL-SERVER.md)
 
-- [Contributing Guide](repo/CONTRIBUTING.md) - How to make changes (non-programmer friendly!)
-- [Context Capsule](docs/CONTEXT-CAPSULE.md) - Quick overview of the project
-- [Architectural Decisions](repo/docs/decisions.md) - Why things are built this way
-- [PowerShell 7+ Migration](docs/PWSH-MIGRATION.md) - Details on the pwsh upgrade
-- [Roadmap](docs/ROADMAP.md) - What's coming next
+### Using SolidStack
+- [Theater Analogy](docs/THEATER-ANALOGY.md) ⭐ Start here!
+- [Command Reference](docs/COMMANDS.md)
+- [Configuration Guide](docs/CONFIG.md)
 
-## Development
+### For Developers
+- [Contributing Guide](CONTRIBUTING.md)
+- [Parallel Implementation Strategy](PARALLEL-IMPLEMENTATION.md)
+- [Architectural Decisions](docs/decisions.md)
 
-### Running from Source
+### Platform-Specific
+- [Using from macOS](docs/USING-FROM-MAC.md)
+- [Windows Installation](docs/INSTALL-SERVER.md)
+- [AI Assistant Guide](docs/AI-ASSISTANT-GUIDE.md)
 
+---
+
+## 🚀 Quick Examples
+
+### PowerShell Version
 ```powershell
-cd C:\SolidStack\repo
-pwsh src\solidstack.ps1 status
+# Check status
+pwsh -File ~/.solidstack/bin/solidstack.ps1 status
+
+# Deploy service (coming soon)
+pwsh -File ~/.solidstack/bin/solidstack.ps1 deploy wordpress
 ```
 
-### Adding a New Command
+### Rust Version
+```bash
+# Check status
+solidstack status
 
-1. Create `src/commands/yourcommand.ps1`
-2. Add it to the switch statement in `src/solidstack.ps1`
-3. Test it: `pwsh src\solidstack.ps1 yourcommand`
-4. Document it in the help text
-
-See [CONTRIBUTING.md](repo/CONTRIBUTING.md) for more details.
-
-## Troubleshooting
-
-### "Command not found" or "Execution policy" errors
-
-Make sure you're using PowerShell 7+ and running with `-File`:
-```powershell
-pwsh -File C:\SolidStack\bin\solidstack.ps1 status
+# Deploy service (coming soon)
+solidstack deploy wordpress
 ```
 
-### "SolidStack requires PowerShell 7+"
+**Same commands, different engine!**
 
-Install PowerShell 7+:
-```powershell
-powershell -ExecutionPolicy Bypass -File C:\SolidStack\tools\install-pwsh.ps1
-```
+---
 
-### Check the logs
+## 🔬 The Experiment
 
-Every command logs to `C:\SolidStack\stack\logs\`. Look at the most recent file:
-```powershell
-Get-ChildItem C:\SolidStack\stack\logs\*.log | Sort-Object LastWriteTime -Descending | Select-Object -First 1 | Get-Content
-```
+We're building both to answer:
+- Which is faster?
+- Which is easier to maintain?
+- Which has better errors?
+- Which do users prefer?
+- What can each do that the other can't?
 
-### Get AI Help
+**Follow along:** [Parallel Implementation Strategy](PARALLEL-IMPLEMENTATION.md)
 
-All output is designed to be copy/pasted to ChatGPT or Claude. Just run a command and paste the entire output for assistance.
+---
 
-## Contributing
+## 🤝 Contributing
 
-Contributions welcome! See [CONTRIBUTING.md](repo/CONTRIBUTING.md) for:
-- How to make changes (even if you're not a programmer)
-- Development workflow
-- Commit message format
-- Pull request guidelines
+We welcome contributions to either implementation!
 
-## License
+- **PowerShell Branch:** Windows-heavy features, rich integrations
+- **Rust Branch:** Performance optimizations, cross-platform features
+- **Master Branch:** Docs, specs, shared concepts
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+---
+
+## 📊 Comparison
+
+| Feature | PowerShell | Rust |
+|---------|------------|------|
+| **Install Size** | ~100MB | ~5-10MB |
+| **Startup Time** | ~500ms | <10ms |
+| **Dependencies** | PS7 + .NET | None |
+| **Modification** | Edit script | Recompile |
+| **Windows Integration** | Excellent | Good |
+| **Cross-Platform** | Good | Excellent |
+| **Status** | ✅ Ready | 🚧 Experimental |
+
+---
+
+## 🛣️ Roadmap
+
+### Current (v1.0)
+- [x] PowerShell implementation complete
+- [x] Cross-platform path abstraction
+- [x] Status and reporting commands
+- [ ] Rust implementation started
+
+### Next (v1.5)
+- [ ] Rust: Basic commands (status)
+- [ ] Both: Deploy command
+- [ ] Both: Snapshot/restore
+- [ ] Performance comparison
+
+### Future (v2.0+)
+- [ ] Both: Recipe system
+- [ ] Both: Monitoring integration
+- [ ] User choice of implementation
+- [ ] Hybrid deployment options
+
+---
+
+## 📖 Learn More
+
+- **Why Two Languages?** [Parallel Implementation Strategy](PARALLEL-IMPLEMENTATION.md)
+- **Theater Analogy** [The Mental Model](docs/THEATER-ANALOGY.md)
+- **Architecture** [How It Works](docs/ARCHITECTURE.md)
+
+---
+
+## 📜 License
 
 MIT License - see [LICENSE](LICENSE) for details
 
-## Acknowledgments
+---
 
-- Built for Windows Server self-hosters
-- Designed with non-programmers in mind
-- AI-assisted development friendly
+## 🙏 Acknowledgments
 
-## Support
+Built with the help of Claude (Anthropic) through an iterative, learning-focused development process.
 
-- 📝 [Open an issue](https://github.com/YOUR_USERNAME/solidstack/issues) for bugs or questions
-- 💬 Check existing issues for similar problems
-- 📚 Read the docs in `docs/` folder
-- 🤖 Paste logs to AI assistants for help
+The parallel implementation approach is inspired by:
+- Ripgrep (Rust grep replacement)
+- Deno (Rust Node.js alternative)
+- Modern CLI tools choosing performance + UX
+
+**Questions? Open an issue or check the docs!**
