@@ -142,9 +142,10 @@ echo ""
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 SHELL_RC=~/.zshrc
-if [ -n "$BASH_VERSION" ]; then
-    SHELL_RC=~/.bashrc
-fi
+case "$SHELL" in
+  */bash) SHELL_RC=~/.bashrc ;;
+  *)      SHELL_RC=~/.zshrc  ;;
+esac
 
 echo "⚙️  Setting up shell aliases in $SHELL_RC..."
 
