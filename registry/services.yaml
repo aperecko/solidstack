@@ -1,0 +1,62 @@
+# SolidStack Service Registry
+# What runs where
+
+services:
+  # Infrastructure Services (Tier 1 - on SSDC)
+  active-directory:
+    name: "Active Directory Domain Services"
+    node: SSDC
+    type: infrastructure
+    tier: 1
+    status: running
+    description: "Identity authority for solidstate.local domain"
+    
+  dns:
+    name: "DNS Server"
+    node: SSDC
+    type: infrastructure
+    tier: 1
+    status: running
+    description: "Internal DNS authority for solidstate.local"
+    
+  ad-cs:
+    name: "Active Directory Certificate Services"
+    node: SSDC
+    type: infrastructure
+    tier: 1
+    status: running
+    description: "Internal PKI, auto-enrollment for domain computers"
+
+  # Platform Services (Tier 2 - on SSDOCK)
+  # These will be added as they are deployed
+  
+  # traefik:
+  #   name: "Traefik"
+  #   node: SSDOCK
+  #   type: platform
+  #   tier: 2
+  #   container:
+  #     image: "traefik:latest"
+  #     compose_file: "stack/compose/traefik.yml"
+  #   status: planned
+  #   description: "Reverse proxy, HTTPS termination, automatic SSL"
+  
+  # portainer:
+  #   name: "Portainer"
+  #   node: SSDOCK
+  #   type: platform
+  #   tier: 2
+  #   container:
+  #     image: "portainer/portainer-ce:latest"
+  #     compose_file: "stack/compose/portainer.yml"
+  #   status: planned
+  #   description: "Docker management UI"
+
+  # Business Services (workloads)
+  # Will be added as business systems are deployed
+
+# Service Types:
+# - infrastructure: Core services (AD, DNS, PKI)
+# - platform: Enabling services (proxy, monitoring, backup)
+# - business: Application workloads (Groomtrax, OpenSign, etc.)
+# - personal: Personal services (Plex, etc.)

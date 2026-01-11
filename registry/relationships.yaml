@@ -1,0 +1,111 @@
+# SolidStack Relationships
+# Dependencies and trust boundaries
+
+# Node Dependencies
+node_dependencies:
+  SSDOCK:
+    requires:
+      - SSDC  # For DNS resolution and domain authentication
+      - SRV   # Physical host
+    trust_level: trusted
+    notes: "Domain-joined, certificate-enrolled, safe to rebuild"
+    
+  SSDC:
+    requires:
+      - SRV   # Physical host
+    trust_level: highly-trusted
+    notes: "Identity authority, changes slowly, never experiment"
+
+# Service Dependencies
+service_dependencies:
+  traefik:
+    requires:
+      - dns  # For internal name resolution
+      - ad-cs  # For internal certificates (optional, can use Let's Encrypt)
+    provides:
+      - reverse-proxy
+      - https-termination
+    notes: "Entry point for all web services"
+    
+  portainer:
+    requires:
+      - traefik  # For HTTPS access
+    provides:
+      - docker-management-ui
+    notes: "Management interface, behind proxy"
+
+# Trust Boundaries
+trust_boundaries:
+  tier_0_to_tier_1:
+    from: SRV
+    to: SSDC
+    relationship: "hosts"
+    trust: "full"
+    notes: "Hypervisor trusts VM, VM trusts hypervisor"
+    
+  tier_1_to_tier_2:
+    from: SSDC
+    to: SSDOCK
+    relationship: "authenticates"
+    trust: "domain-member"
+    notes: "SSDC is identity authority for SSDOCK"
+    
+  tier_2_workloads:
+    from: SSDOCK
+    to: containers
+    relationship: "orchestrates"
+    trust: "isolated"
+    notes: "Containers are isolated from each other and from host"
+
+# Data Flow Patterns
+data_flows:
+  external_request:
+    path:
+      - "Internet"
+      - "Cloudflare (public edge)"
+      - "Router/Firewall"
+      - "Traefik on SSDOCK"
+      - "Application Container"
+    notes: "HTTPS terminated at Traefik, internal routing to containers"
+    
+  operator_access:
+    path:
+      - "Operator Mac"
+      - "SSH/Tailscale"
+      - "SSDOCK (authenticated via SSDC)"
+      - "Docker Engine"
+      - "Containers"
+    notes: "Operator authenticates to domain, accesses docker via SSH"
+    
+  certificate_enrollment:
+    path:
+      - "SSDOCK (domain-joined)"
+      - "GPO from SSDC"
+      - "Certificate Request to AD CS"
+      - "Certificate Issued"
+    notes: "Automatic on Windows, manual/certbot on Linux"
+
+# Network Segments
+network_segments:
+  management_network:
+    subnet: "192.168.69.0/24"
+    purpose: "Internal infrastructure"
+    nodes:
+      - SRV
+      - SSDC
+      - SSDOCK
+    access: "SSH, RDP, domain traffic"
+    
+  container_network:
+    type: "Docker networks"
+    purpose: "Isolated container communication"
+    notes: "Docker bridge/overlay networks within SSDOCK"
+
+# Security Posture
+security_posture:
+  identity_source: "SSDC (Active Directory)"
+  pki_source: "SSDC (AD Certificate Services)"
+  secrets_source: "1Password CLI (external)"
+  access_method: "SSH with key authentication"
+  container_isolation: "Docker default isolation"
+  notes: "Trust decreases with tier number (Tier 1 most trusted)"

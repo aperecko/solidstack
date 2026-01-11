@@ -1,0 +1,78 @@
+# SolidStack Node Registry
+# Source of truth for infrastructure
+
+nodes:
+  SRV:
+    type: hypervisor
+    tier: 0
+    platform: windows
+    os: "Windows Server 2025"
+    role: hyper-v-host-only
+    domain: null
+    access:
+      local_ip: 192.168.69.4
+      tailscale_ip: null
+      ssh_port: 22
+      ssh_fingerprint: "SHA256:IKNSl0FHk+gN8dMwQ3THnp+Hf3bm7HwTZ9vLM2xcmtE"
+    capabilities:
+      - hyper-v
+    services: []
+    last_deployed: 2026-01-10T18:00:00Z
+    deployed_by: test@mac
+    notes: "Physical server, Hyper-V host only, no business logic"
+
+  SSDC:
+    type: identity-authority
+    tier: 1
+    platform: windows
+    os: "Windows Server 2025 Core"
+    role: domain-controller
+    domain: solidstate.local
+    access:
+      local_ip: 192.168.69.5
+      tailscale_ip: null
+      ssh_port: 22
+      ssh_fingerprint: "SHA256:kC+pHU0cGSZxMr5aPV+d7QxGRlYqXE5j3W9rT8vN2pA"
+    capabilities:
+      - active-directory
+      - dns-server
+      - certificate-authority
+      - domain-controller
+    services:
+      - active-directory
+      - dns
+      - ad-cs
+    last_deployed: 2026-01-10T19:30:00Z
+    deployed_by: test@mac
+    notes: "Primary DC, DNS authority, internal PKI, changes slowly"
+
+  SSDOCK:
+    type: execution-platform
+    tier: 2
+    platform: linux
+    os: "Ubuntu Server 24.04 LTS"
+    role: docker-host
+    domain: solidstate.local
+    access:
+      local_ip: 192.168.69.10
+      tailscale_ip: null
+      ssh_port: 22
+      ssh_fingerprint: null  # Will be populated during deployment
+    capabilities: []  # Will be populated during deployment
+    services: []      # Will be populated as services are deployed
+    last_deployed: null
+    deployed_by: null
+    notes: "Execution platform, Docker host, safe to experiment and rebuild"
+
+# Future nodes (Phase 2 - not yet deployed)
+# 
+# SRV-DC2:
+#   type: identity-authority
+#   tier: 1
+#   platform: windows
+#   os: "Windows Server 2025 Core"
+#   role: secondary-domain-controller
+#   domain: solidstate.local
+#   access:
+#     local_ip: 192.168.69.6
+#   notes: "Secondary DC for redundancy"

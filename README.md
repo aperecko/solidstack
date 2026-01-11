@@ -1,207 +1,240 @@
 # SolidStack
 
-> A traceable, modular self-host stack for Windows Server + Docker Desktop
+> A cross-platform control plane for multi-tier self-hosted infrastructure
 
 [![PowerShell 7+](https://img.shields.io/badge/PowerShell-7%2B-blue.svg)](https://github.com/PowerShell/PowerShell)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## What is SolidStack?
 
-SolidStack is a **PowerShell-based control plane** for managing self-hosted Docker services on Windows Server. It's the layer between you and Docker that makes everything traceable and manageable.
+SolidStack is a **PowerShell-based control plane** for managing tiered self-hosted infrastructure with Docker services. It's designed to answer one key question: **"Where do I go to fix this?"**
 
 **Think of it as:**
-- The conductor for your Docker orchestra
-- Infrastructure-as-code for Windows self-hosting
-- A docker-compose wrapper with logging, conventions, and safety
+- Infrastructure-as-code for small-to-medium self-hosting
+- A registry of what exists and where it runs
+- A deployment system that documents reality, not intention
+- A calm, grounded approach to infrastructure management
 
-**Architecture:**
+## Architecture Overview
+
 ```
-Windows Server (bare metal)
-├─ Docker Desktop (container runtime)
-├─ PowerShell 7+ (scripting layer)
-└─ SolidStack (control plane) ← You are here
-     │
-     └─ Manages containers below:
-         ├─ Traefik (proxy)
-         ├─ Portainer (UI)
-         └─ Your services (apps, databases, etc)
+Layer 0: Physical Infrastructure
+├─ SRV (Windows Server - Hyper-V host)
+└─ UniFi (Network fabric)
+
+Tier 1: Identity & Authority (Slow-Changing)
+├─ SSDC (Windows Server Core VM)
+│   ├─ Active Directory Domain Services
+│   ├─ DNS Server
+│   └─ Certificate Authority (AD CS)
+
+Tier 2: Execution Platform (Fast-Changing, Safe to Rebuild)
+├─ SSDOCK (Ubuntu Server VM)
+│   ├─ Docker Engine
+│   ├─ PowerShell 7+
+│   ├─ SolidStack control plane
+│   └─ Containerized services (Traefik, Portainer, apps)
+
+Tier 3: Redundancy (Phase 2)
+└─ Secondary DC, geographic replication (explicitly deferred)
 ```
 
-**SolidStack itself does NOT run in Docker** - it's the native Windows layer that orchestrates everything else. See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for details.
+See [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) for details.
 
-**Perfect for:**
-- Non-programmers who want to self-host services
-- Learning DevOps concepts hands-on
-- Maintaining a clear audit trail of all operations
-- Getting AI assistance (all output is AI-friendly)
+## Core Principles
+
+1. **Prevent redundant workloads** - One system per responsibility
+2. **Document reality, not intention** - Registry reflects what actually exists
+3. **Always answer "where do I fix this?"** - Clear responsibility boundaries
+4. **Stay grounded under failure** - Calm recovery > perfect uptime
+
+See [docs/PRINCIPLES.md](docs/PRINCIPLES.md) for complete philosophy.
 
 ## Key Features
 
-- 📝 **Everything is logged** - Timestamped logs for every command
-- 🔒 **Secrets stay local** - Never accidentally commit sensitive data
-- 🧩 **Modular design** - Compose services from multiple Docker Compose files
-- 🤖 **AI-friendly** - Output designed for copy/paste to AI assistants
-- 📊 **Status reports** - Always know what's running and what's not
+- 🏗️ **Multi-tier architecture** - Physical, identity, execution, workloads
+- 📋 **Registry-based** - Git-tracked source of truth for infrastructure
+- 🔄 **Idempotent deployment** - Safe to run repeatedly, detects drift
+- 🐧 **Cross-platform** - Works on Windows and Linux (PowerShell 7+)
+- 🔐 **1Password-first** - Secrets from authoritative source, never hardcoded
+- 🔑 **SSH everywhere** - Key-based authentication, mesh networking ready
+- 📝 **Everything logged** - Timestamped audit trail
+- 🧘 **Human-centered** - Low cognitive load, designed for calm operation
 
 ## Quick Start
 
-### Prerequisites
-- Windows Server 2019+ or Windows 10/11
-- Docker Desktop
-- PowerShell 7+ (we'll help you install it)
+### For New Infrastructure
 
-### Installation
+```bash
+# 1. Clone the repository
+git clone https://github.com/aperecko/solidstack.git
+cd solidstack
 
-1. **Clone or download this repo** to `C:\SolidStack\repo`
+# 2. On a new Linux node (Ubuntu/Debian)
+sudo bash bootstrap-linux.sh -NodeType SSDOCK
 
-2. **Install PowerShell 7+** (if not already installed):
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File C:\SolidStack\tools\install-pwsh.ps1
-   ```
+# 3. On a new Windows node
+pwsh ./solidstack-deploy.ps1 -NodeType SSDC
 
-3. **Close and reopen your terminal**, then verify:
-   ```powershell
-   pwsh -v
-   # Should show: PowerShell 7.x.x
-   ```
-
-4. **Run your first command**:
-   ```powershell
-   pwsh -File C:\SolidStack\bin\solidstack.ps1 status
-   ```
-
-## Usage
-
-### Basic Commands
-
-```powershell
-# Check system status
-pwsh -File C:\SolidStack\bin\solidstack.ps1 status
-
-# View latest status report
-pwsh -File C:\SolidStack\bin\solidstack.ps1 report latest
-
-# List all reports
-pwsh -File C:\SolidStack\bin\solidstack.ps1 report list
-
-# Show a specific report
-pwsh -File C:\SolidStack\bin\solidstack.ps1 report show C:\SolidStack\reports\status-20260106-123456.txt
+# 4. The script will:
+#    - Install PowerShell 7+ (if needed)
+#    - Install dependencies (Docker, SSH, etc.)
+#    - Configure authentication via 1Password
+#    - Join domain (if applicable)
+#    - Register node in control plane
+#    - Deploy services (if applicable)
 ```
 
-### Where Things Live
+### For Existing Nodes (Realignment)
+
+```bash
+# Pull latest registry
+git pull
+
+# Realign node with current state
+pwsh ./solidstack-deploy.ps1 -NodeType SSDOCK -Realign
+
+# This will:
+# - Detect configuration drift
+# - Fix any issues
+# - Update registry with current state
+# - Commit changes back to Git
+```
+
+## Project Structure
 
 ```
-C:\SolidStack\
-├── bin\              # Main scripts you run
-├── repo\             # This git repository
-│   ├── src\         # Source code
-│   └── docs\        # Documentation
-├── stack\            # Runtime files (NOT in git)
-│   ├── compose\     # Docker Compose files
-│   ├── config\      # Service configurations
-│   ├── data\        # Docker volumes
-│   ├── logs\        # All command logs
-│   └── secrets\     # Sensitive files (git ignored)
-├── reports\         # Status reports
-└── tools\           # Helper tools
+solidstack/
+├─ README.md (this file)
+├─ solidstack-deploy.ps1 (main deployment script)
+├─ bootstrap-linux.sh (Linux wrapper, installs pwsh)
+│
+├─ docs/
+│   ├─ PRINCIPLES.md (design philosophy)
+│   ├─ INFRASTRUCTURE.md (tier model explained)
+│   ├─ LINUX-SUPPORT.md (why Linux for execution platform)
+│   └─ [legacy docs...]
+│
+├─ registry/
+│   ├─ nodes.yaml (infrastructure nodes)
+│   ├─ services.yaml (what runs where)
+│   ├─ relationships.yaml (dependencies)
+│   └─ ssh-config.d/ (generated SSH configs)
+│
+├─ modules/
+│   ├─ Bootstrap/ (first-time setup)
+│   └─ Alignment/ (drift detection & correction)
+│
+├─ src/ (legacy: service orchestration)
+└─ stack/ (legacy: docker compose files)
 ```
+
+## The Registry (Source of Truth)
+
+The `registry/` directory contains YAML files that define:
+
+- **nodes.yaml** - All infrastructure nodes (VMs, physical servers)
+- **services.yaml** - All services and where they run
+- **relationships.yaml** - Dependencies and trust boundaries
+
+**The registry is:**
+- ✅ Version-controlled (Git)
+- ✅ Human-readable (YAML)
+- ✅ Machine-parseable (PowerShell + ConvertFrom-Yaml)
+- ✅ Updated automatically (by deployment scripts)
+- ✅ The source of truth (reality, not intention)
+
+See [registry/README.md](registry/README.md) for details.
+
+## Platform Support
+
+### Windows Server
+- ✅ Active Directory (identity authority)
+- ✅ Hyper-V (hypervisor)
+- ✅ PowerShell 7+ (native)
+- ✅ Docker Engine (via native install, not Docker Desktop)
+
+### Linux (Ubuntu Server 24.04 LTS)
+- ✅ Docker Engine (native, standard)
+- ✅ PowerShell 7+ (installed automatically)
+- ✅ Domain joining (via realmd/sssd)
+- ✅ SSH (built-in)
+
+See [docs/LINUX-SUPPORT.md](docs/LINUX-SUPPORT.md) for rationale.
 
 ## Design Philosophy
 
-SolidStack follows simple rules:
+**SolidStack is designed for:**
+- Low memory burden (easy to context-switch)
+- Recovery after breaks (clear documentation)
+- Safe experimentation (tier 2 is safe to rebuild)
+- Future delegation (clear responsibility boundaries)
+- Neurodivergent-friendly operation (calm, not alarming)
 
-1. **Config as code** - Everything (except secrets) is in git
-2. **Trace everything** - Every command writes a timestamped log
-3. **AI-friendly output** - Easy to copy/paste for help
-4. **Modular services** - Compose multiple Docker files together
-5. **Secrets stay local** - Never in git, ever
+**If a design choice increases anxiety, noise, or cognitive load, it is considered a regression.**
 
-See [docs/decisions.md](repo/docs/decisions.md) for architectural decisions.
+## What SolidStack IS
 
-## For Non-Programmers
+- ✅ A control plane
+- ✅ A registry of services and relationships
+- ✅ A guide to "where do I fix this?"
+- ✅ Infrastructure-as-code
 
-Don't worry if you're not a programmer! SolidStack is designed to be approachable:
+## What SolidStack IS NOT
 
-- Commands are simple and explained
-- Every action is logged so you can see what happened
-- Documentation is written in plain English
-- The AI-friendly output means you can paste logs to ChatGPT/Claude for help
-- See [CONTRIBUTING.md](repo/CONTRIBUTING.md) for step-by-step guidance
+- ❌ An application (it orchestrates applications)
+- ❌ A monitoring platform (it documents what exists)
+- ❌ A dashboard-first system (it's code-first)
+- ❌ Business logic (it manages business systems)
 
-## Documentation
+## Current Status
 
-- [Contributing Guide](repo/CONTRIBUTING.md) - How to make changes (non-programmer friendly!)
-- [Context Capsule](docs/CONTEXT-CAPSULE.md) - Quick overview of the project
-- [Architectural Decisions](repo/docs/decisions.md) - Why things are built this way
-- [PowerShell 7+ Migration](docs/PWSH-MIGRATION.md) - Details on the pwsh upgrade
-- [Roadmap](docs/ROADMAP.md) - What's coming next
+### ✅ Completed
+- Multi-tier architecture design
+- Registry schema and structure
+- Cross-platform module design
+- Documentation (principles, infrastructure)
 
-## Development
+### 🚧 In Progress
+- SSDOCK deployment (Ubuntu VM creation)
+- Bootstrap module implementation
+- Alignment module implementation
 
-### Running from Source
-
-```powershell
-cd C:\SolidStack\repo
-pwsh src\solidstack.ps1 status
-```
-
-### Adding a New Command
-
-1. Create `src/commands/yourcommand.ps1`
-2. Add it to the switch statement in `src/solidstack.ps1`
-3. Test it: `pwsh src\solidstack.ps1 yourcommand`
-4. Document it in the help text
-
-See [CONTRIBUTING.md](repo/CONTRIBUTING.md) for more details.
-
-## Troubleshooting
-
-### "Command not found" or "Execution policy" errors
-
-Make sure you're using PowerShell 7+ and running with `-File`:
-```powershell
-pwsh -File C:\SolidStack\bin\solidstack.ps1 status
-```
-
-### "SolidStack requires PowerShell 7+"
-
-Install PowerShell 7+:
-```powershell
-powershell -ExecutionPolicy Bypass -File C:\SolidStack\tools\install-pwsh.ps1
-```
-
-### Check the logs
-
-Every command logs to `C:\SolidStack\stack\logs\`. Look at the most recent file:
-```powershell
-Get-ChildItem C:\SolidStack\stack\logs\*.log | Sort-Object LastWriteTime -Descending | Select-Object -First 1 | Get-Content
-```
-
-### Get AI Help
-
-All output is designed to be copy/pasted to ChatGPT or Claude. Just run a command and paste the entire output for assistance.
+### 📋 Planned
+- Traefik deployment (reverse proxy, HTTPS)
+- Portainer deployment (Docker management UI)
+- Backup automation (Restic)
+- Tailscale integration (mesh networking)
 
 ## Contributing
 
-Contributions welcome! See [CONTRIBUTING.md](repo/CONTRIBUTING.md) for:
-- How to make changes (even if you're not a programmer)
-- Development workflow
-- Commit message format
-- Pull request guidelines
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development workflow.
+
+**Key points:**
+- Documentation is critical (explain the "why")
+- Test on real infrastructure (not just in theory)
+- Idempotent scripts (safe to run repeatedly)
+- Clear error messages (operator-friendly)
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details
+MIT License - see [LICENSE](LICENSE) for details.
 
 ## Acknowledgments
 
-- Built for Windows Server self-hosters
-- Designed with non-programmers in mind
+- Built for small-to-medium self-hosting
+- Designed with neurodivergent-friendly principles
 - AI-assisted development friendly
+- Inspired by calm technology principles
 
-## Support
+## Learn More
 
-- 📝 [Open an issue](https://github.com/YOUR_USERNAME/solidstack/issues) for bugs or questions
-- 💬 Check existing issues for similar problems
-- 📚 Read the docs in `docs/` folder
-- 🤖 Paste logs to AI assistants for help
+- [docs/PRINCIPLES.md](docs/PRINCIPLES.md) - Design philosophy and scope boundaries
+- [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) - Tier model and architecture
+- [docs/LINUX-SUPPORT.md](docs/LINUX-SUPPORT.md) - Why Linux for execution platform
+- [registry/README.md](registry/README.md) - Registry structure and usage
+- [docs/ROADMAP.md](docs/ROADMAP.md) - Development roadmap
+
+---
+
+**SolidStack: A system that explains itself.**
