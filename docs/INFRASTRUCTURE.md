@@ -1,307 +1,247 @@
 # SolidStack Infrastructure
 
-> Layered architecture for calm, grounded operation
+> Layered, minimal, and grounded
 
 ## Overview
 
-SolidStack is designed around a **tiered architecture** where each layer has a clear responsibility and rate of change. This document describes the physical and virtual infrastructure that makes up the SolidStack system.
+SolidStack is built on a tiered architecture that separates concerns and maintains clear boundaries. Each tier has specific responsibilities and changes at different rates.
 
 ---
 
 ## Layered Structure
 
-### Layer 0: Physical Infrastructure
+### Physical Layer (Tier 0)
 
-**Purpose:** Foundational hardware and network fabric
+**SRV - Hyper-V Host**
+* Windows Server 2025
+* Hyper-V hypervisor only
+* No business logic
+* No applications
+* Rarely changes
 
-**Components:**
+**Purpose:** Foundation for all VMs. Boring and stable by design.
 
-**SRV (Physical Server)**
-* Role: Hyper-V host only
-* OS: Windows Server 2025
-* Resources: 32GB RAM, 8 CPU cores
-* IP: 192.168.69.4
-* Responsibility: Bare hypervisor, no business logic, no apps
-* Rate of change: Rarely
+**UniFi Network Hardware**
+* Physical network fabric
+* Switching, routing, wireless
+* Network observability
 
-**UniFi Network Infrastructure**
-* Role: Physical network fabric
-* Components: Switching, routing, wireless access
-* Responsibility: Network connectivity and observability
-* Management: External to SolidStack (observed, not orchestrated)
-* Rate of change: Rarely
+**Relationship to SolidStack:** Referenced as infrastructure, not managed or configured.
 
 ---
 
-### Tier 1: Identity & Authority
+### Tier 1 — Identity & Authority
 
-**Purpose:** Define trust, identity, and security boundaries
-
-**Components:**
-
-**SSDC (Domain Controller)**
-* Type: Windows Server 2025 Core VM
+**SSDC - Domain Controller**
+* Windows Server 2025 Core
 * IP: 192.168.69.5
 * Domain: solidstate.local
-* Services:
-  * Active Directory Domain Services
-  * DNS Server
-  * Certificate Authority (AD CS Enterprise Root CA)
-  * Computer certificate auto-enrollment via GPO
-* Responsibility: Identity authority, authentication, internal DNS, PKI
-* Rate of change: Slow (measured in months)
-* Trust level: Highly trusted
-* Experimentation: **Never** - this is production identity
 
-**Why Windows:**
-* Active Directory is the identity foundation
-* Certificate Services for internal PKI
-* DNS authority for internal resolution
-* Proven, stable, well-understood
+**Services:**
+* Active Directory Domain Services
+* DNS Server
+* Certificate Authority (Enterprise Root CA)
+* Computer certificate auto-enrollment via GPO
+
+**Characteristics:**
+* Changes slowly
+* Highly trusted
+* Defines identity, trust, and security boundaries
+* Never hosts business applications
 
 ---
 
-### Tier 2: Execution Platform
+### Tier 2 — Execution Platform
 
-**Purpose:** Run business systems and containerized services
-
-**Components:**
-
-**SSDOCK (Docker Host)**
-* Type: Ubuntu Server 24.04 LTS VM
+**SSDOCK - Docker Host**
+* Ubuntu Server 24.04 LTS
 * IP: 192.168.69.10
-* Domain: solidstate.local (joined via realmd/sssd)
-* Resources: 4 cores, 12GB RAM, 200GB disk
-* Services:
-  * Docker Engine (native Linux)
-  * PowerShell 7+
-  * SolidStack control plane
-  * Containerized services (Traefik, Portainer, business apps)
-* Responsibility: Execute workloads, host containers, run SolidStack
-* Rate of change: Fast (daily/weekly)
-* Experimentation: **Safe** - designed to be rebuilt easily
-* Trust level: Trusted (domain-joined, certificate-enrolled)
+* Domain-joined to solidstate.local
 
-**Why Linux:**
-* Docker is native and standard on Linux
-* Better performance for containers (no Hyper-V isolation overhead)
-* Lighter resource footprint
-* More standard documentation and community support
-* Free and open source (no licensing overhead)
-* PowerShell 7+ runs identically on Linux and Windows
+**Services:**
+* Docker Engine (native Linux)
+* PowerShell 7+
+* SolidStack control plane
+* Containerized services
+
+**Characteristics:**
+* Runs business systems
+* Hosts integrations
+* Safe to experiment in
+* Easy to rebuild
+* Where business logic lives (in containers)
 
 ---
 
-### Tier 3: Redundancy (Phase 2)
+### Tier 3 — Redundancy (Phase 2)
 
-**Purpose:** High availability and disaster recovery
+**Deferred Until Core Stack is Stable**
 
-**Components (Planned):**
+Future considerations:
+* Secondary domain controller
+* Replicated workloads
+* High availability patterns
 
-**SRV-DC2 (Secondary Domain Controller)**
-* Type: Windows Server Core VM
-* IP: 192.168.69.6
-* Purpose: AD replication, DNS failover, CA redundancy
-* Status: **Deferred until core stack is stable**
-
-**SRVR (Second Physical Server)**
-* Location: Different physical location
-* Purpose: Geographic redundancy, cross-site replication
-* Status: **Phase 2 - explicitly deferred**
-
-**Design principle:** Redundancy is built only after the core system is proven and trusted.
+**Philosophy:** Build and trust the core before adding complexity.
 
 ---
 
 ## Network Design
 
 ```
-192.168.69.0/24 Subnet
-
-.1          Gateway/Router (UniFi)
-.4          SRV (Hyper-V host - Windows)
-.5          SSDC (Domain Controller - Windows)
-.6          [Reserved for SRV-DC2 - Phase 2]
-.10         SSDOCK (Docker host - Linux)
-.20-29      [Reserved for file/storage VMs]
-.30-39      [Reserved for monitoring/management VMs]
-.100-199    DHCP pool (workstations)
+192.168.69.0/24
+├─ .1         Gateway/Router (UniFi)
+├─ .4         SRV (Hyper-V host)
+├─ .5         SSDC (Primary DC)
+├─ .6         Reserved for secondary DC (Phase 2)
+├─ .10        SSDOCK (Docker host)
+├─ .20-29     File/Storage VMs (future)
+├─ .30-39     Monitoring/Management VMs (future)
+└─ .100-199   DHCP pool (workstations)
 ```
 
 ---
 
-## Access & Connectivity
+## Certificates & Trust Model
 
-### SSH Access
+### Internal PKI
+* Provided by AD CS on SSDC
+* Certificates are:
+  * Auto-issued
+  * Auto-renewed
+  * Trusted by all domain computers
 
-All servers are accessible via SSH with key-based authentication:
+### Domain-Joined Linux
+* SSDOCK (Ubuntu) joins domain via realmd/sssd
+* Can request certificates via certbot or manual enrollment
+* Inherits trust from domain membership
 
-```bash
-# From operator Mac
-ssh srv      # 192.168.69.4 (SRV)
-ssh ssdc     # 192.168.69.5 (SSDC)
-ssh ssdock   # 192.168.69.10 (SSDOCK)
-```
-
-**Authentication:**
-* ED25519 SSH key stored in 1Password
-* 1Password SSH agent integration
-* Biometric unlock on Mac
-
-### Tailscale Mesh (Planned)
-
-**Purpose:** Private mesh networking for access from anywhere
-
-**Benefits:**
-* Access nodes from phone, laptop, remote locations
-* Encrypted peer-to-peer connectivity
-* Failover when local network unavailable
-* Cross-location connectivity (when SRVR is added)
-
-**Status:** Planned, not yet implemented
+**Philosophy:** Certificates are infrastructure, not app concerns. Applications do not manage their own certificates.
 
 ---
 
-## Domain Integration
+## Component Classification
 
-### Windows Domain: solidstate.local
+### 1. Control Plane / Governance (SolidStack Core)
 
-**Domain Controller:** SSDC (192.168.69.5)
+**SolidStack**
+* The control plane itself
+* Registry of services, nodes, relationships
+* Answers: "What exists, and where do I go to fix it?"
+* Lives logically on SSDOCK
+* Conceptually above all stacks
 
-**Domain Members:**
-* SSDC (DC itself)
-* SSDOCK (Linux, joined via realmd/sssd)
-* [Future VMs will auto-join during deployment]
+**AI Router**
+* Shared intelligence gateway
+* Routes requests to Claude / other models
+* Enforces policy, context, cost control
+* As a shared service on SSDOCK
+* Registered once in SolidStack
 
-**Benefits of Domain Membership:**
-* Centralized identity (SOLIDSTATE\Administrator)
-* Automatic certificate enrollment (via GPO on Windows, manual/certbot on Linux)
-* DNS resolution (internal hostnames)
-* Trust relationships (cross-node authentication)
-
----
-
-## Certificate Authority
-
-**Provider:** Active Directory Certificate Services (AD CS) on SSDC
-
-**Certificate Types:**
-* Computer certificates (auto-enrolled for domain computers)
-* Service certificates (for HTTPS, internal services)
-* User certificates (optional, for advanced scenarios)
-
-**Trust Model:**
-* Internal CA is trusted by all domain members
-* Certificates auto-renew before expiration
-* Applications do NOT manage their own certificates
-* SolidStack treats certificates as infrastructure, not app concerns
+**1Password CLI (op)**
+* Authoritative secrets and identity source
+* SSH keys, tokens, credentials
+* External authority
+* Referenced by SolidStack
+* Used by SSDOCK and operators
 
 ---
 
-## Platform Choices Explained
+### 2. Network & Access Fabric
 
-### Why Windows for SSDC?
+**Tailscale**
+* Private mesh networking
+* Secure access between devices, offices, servers
+* Documented in SolidStack as connectivity layer
 
-Active Directory and Certificate Services are Windows-native and proven. There's no compelling reason to replace them with Linux alternatives (FreeIPA, etc.) for a small infrastructure.
+**Cloudflare**
+* Public edge
+* DNS, protection, ingress, tunneling
+* Linked to SolidStack as public boundary
 
-### Why Linux for SSDOCK?
-
-Docker is native to Linux, and most self-hosting documentation assumes Linux. The execution platform benefits from:
-* Native container runtime (no Hyper-V isolation layer)
-* Lighter resource usage
-* Standard tooling and community support
-* Cost savings (no Windows licensing)
-* Identical PowerShell 7+ experience
-
-**Trade-off accepted:** Slightly more complex AD integration on Linux (realmd/sssd), but well-documented and stable.
-
-### Why Not Run Everything on One Server?
-
-**Stratification provides:**
-* Clear responsibility boundaries ("Where do I fix this?")
-* Safe experimentation space (SSDOCK can be rebuilt)
-* Reduced blast radius (identity layer isolated from execution layer)
-* Easier migration (VMs can move between hosts)
-* Phased redundancy (add SRVR later without redesign)
+**Stablepoint Hosting**
+* External compute / hosting provider
+* External node class in SolidStack
 
 ---
 
-## Data Flow Example
+### 3. Execution & Workloads (Tier 2)
 
-```
-User Request (external)
-    ↓
-Cloudflare (public edge, DNS)
-    ↓
-Traefik on SSDOCK (reverse proxy, HTTPS termination)
-    ↓
-Application Container on SSDOCK (business logic)
-    ↓
-Data Volume on SSDOCK (persistence)
-    ↓
-Backup via Restic → Cloud Storage
-```
+**Docker / Containers**
+* Deployment mechanism
+* Isolation boundary for apps
+* On SSDOCK only
 
-**Authentication Flow:**
-```
-Operator connects via SSH/Tailscale
-    ↓
-Authenticates to SOLIDSTATE domain (via SSDC)
-    ↓
-Accesses SSDOCK (domain-joined, trusted)
-    ↓
-Manages containers (Docker, SolidStack control plane)
-```
+**Business Systems** (examples)
+* OpenSign (contract signing)
+* Dialpad → BI Integration (Prettypaws)
+* Customized Groomtrax (operational system)
 
 ---
 
-## Deployment Strategy
+### 4. Personal Data & Recovery
 
-### Bootstrap Order
-
-1. **SRV** (Physical) - Install Hyper-V, configure networking
-2. **SSDC** (VM) - Promote to DC, configure DNS/CA
-3. **SSDOCK** (VM) - Install Ubuntu, join domain, deploy SolidStack
-4. **Services** (Containers) - Deploy via SolidStack control plane
-
-### Migration Path
-
-**To move to a new physical host:**
-
-1. Install Hyper-V on new server (SRVR)
-2. Export VMs from SRV, import to SRVR
-3. Update DNS records (if IP addresses change)
-4. Replicate domain controller (SRV-DC2)
-5. Test failover, then cut over
-
-**Key insight:** Because VMs are stratified and domain-integrated, migration is a well-defined process, not a crisis.
+**Personal Stack** (isolated from business)
+* Plex (media consumption)
+* BitTorrent (media acquisition)
+* Antivirus (baseline host hygiene)
 
 ---
 
-## Future Considerations
+## Why This Architecture?
 
-### Phase 2: Redundancy
+### Clear Separation of Concerns
+* **Physical layer:** Provides compute
+* **Identity layer:** Provides trust
+* **Execution layer:** Runs workloads
+* **Control plane:** Coordinates everything
 
-* Add SRV-DC2 (secondary domain controller)
-* Implement VM replication between SRV and SRVR
-* Set up Tailscale for cross-site connectivity
-* Test failover procedures
+### Migration & Portability
+* Infrastructure defined in git
+* Secrets in 1Password
+* Data in backups
+* Recovery = clone + restore
 
-### Phase 3: Specialized Workloads
+### Calm Under Failure
+* Know which layer is responsible
+* Clear escalation path
+* No tangled dependencies
 
-* File server VM (if needed)
-* Monitoring VM (if central monitoring is desired)
-* Development/staging environment (isolated from production)
+### Human-Centered
+* Reduces cognitive load
+* Supports breaks and context switching
+* Safe to experiment in Tier 2
+* Phase 2 deferred until trust is established
 
 ---
 
-## Summary
+## Evolution Path
 
-**The infrastructure is designed to be:**
+### Current State (Phase 1)
+✅ SRV (Hyper-V host)
+✅ SSDC (Domain controller)
+🎯 SSDOCK (Docker host - next step)
 
-* **Boring at the foundation** (SRV, UniFi - rarely change)
-* **Stable in the identity layer** (SSDC - changes slowly)
-* **Flexible in the execution layer** (SSDOCK - safe to experiment)
-* **Scalable through stratification** (add redundancy when needed)
+### Phase 2 (Redundancy)
+⏳ Secondary domain controller
+⏳ Replicated workloads
+⏳ High availability patterns
 
-**The goal:** Answer "where do I go to fix this?" clearly and calmly, every time.
+### Phase 3 (Scale)
+⏳ Additional execution nodes
+⏳ Workload distribution
+⏳ Geographic distribution (SRVR at second location)
+
+---
+
+## Key Insight
+
+**This is not one giant system.**
+
+It's:
+* One control plane (SolidStack)
+* Multiple isolated stacks (business, personal, platform)
+* Clear authority boundaries
+* A system that explains itself
+
+**Physical stays boring. Virtual stays flexible. Identity stays trusted. Execution stays safe.**

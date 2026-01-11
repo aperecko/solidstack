@@ -1,62 +1,138 @@
 # SolidStack Service Registry
-# What runs where
+# Version: 0.1.0
+# Last Updated: 2026-01-11
+
+---
+
+# Platform Services (Infrastructure)
 
 services:
-  # Infrastructure Services (Tier 1 - on SSDC)
-  active-directory:
-    name: "Active Directory Domain Services"
-    node: SSDC
-    type: infrastructure
-    tier: 1
-    status: running
-    description: "Identity authority for solidstate.local domain"
-    
-  dns:
-    name: "DNS Server"
-    node: SSDC
-    type: infrastructure
-    tier: 1
-    status: running
-    description: "Internal DNS authority for solidstate.local"
-    
-  ad-cs:
-    name: "Active Directory Certificate Services"
-    node: SSDC
-    type: infrastructure
-    tier: 1
-    status: running
-    description: "Internal PKI, auto-enrollment for domain computers"
+  traefik:
+    type: reverse-proxy
+    node: SSDOCK
+    stack: platform
+    status: planned
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    capabilities:
+      - https-termination
+      - automatic-ssl
+      - routing
+    notes: "Primary ingress. Manages SSL/TLS for all services."
 
-  # Platform Services (Tier 2 - on SSDOCK)
-  # These will be added as they are deployed
-  
-  # traefik:
-  #   name: "Traefik"
-  #   node: SSDOCK
-  #   type: platform
-  #   tier: 2
-  #   container:
-  #     image: "traefik:latest"
-  #     compose_file: "stack/compose/traefik.yml"
-  #   status: planned
-  #   description: "Reverse proxy, HTTPS termination, automatic SSL"
-  
-  # portainer:
-  #   name: "Portainer"
-  #   node: SSDOCK
-  #   type: platform
-  #   tier: 2
-  #   container:
-  #     image: "portainer/portainer-ce:latest"
-  #     compose_file: "stack/compose/portainer.yml"
-  #   status: planned
-  #   description: "Docker management UI"
+  portainer:
+    type: container-management
+    node: SSDOCK
+    stack: platform
+    status: planned
+    ports:
+      - "9000:9000"
+    depends_on:
+      - traefik
+    notes: "Docker management UI. Accessed via Traefik."
 
-  # Business Services (workloads)
-  # Will be added as business systems are deployed
+# Business Services — Prettypaws
 
-# Service Types:
-# - infrastructure: Core services (AD, DNS, PKI)
-# - platform: Enabling services (proxy, monitoring, backup)
-# - business: Application workloads (Groomtrax, OpenSign, etc.)
-# - personal: Personal services (Plex, etc.)
+  dialpad-bi:
+    type: data-integration
+    node: SSDOCK
+    stack: prettypaws
+    status: planned
+    notes: "Dialpad → BI pipeline. Communication intelligence."
+
+# Business Services — Comar Kennel
+
+  groomtrax:
+    type: operational-system
+    node: SSDOCK
+    stack: comar
+    status: planned
+    notes: "Customized Groomtrax. System of record for grooming workflows."
+
+# Shared Business Services
+
+  opensign:
+    type: document-signing
+    node: SSDOCK
+    stack: business-shared
+    status: planned
+    notes: "Contract and document signing authority."
+
+# Personal Services
+
+  plex:
+    type: media-server
+    node: SSDOCK
+    stack: personal
+    status: planned
+    notes: "Personal media consumption. Isolated from business concerns."
+
+  bittorrent:
+    type: media-acquisition
+    node: SSDOCK
+    stack: personal
+    status: planned
+    notes: "Media acquisition upstream of Plex. Personal stack only."
+
+---
+
+# Service Stacks
+
+stacks:
+  platform:
+    description: "Core infrastructure services"
+    services:
+      - traefik
+      - portainer
+
+  prettypaws:
+    description: "Prettypaws business services"
+    services:
+      - dialpad-bi
+
+  comar:
+    description: "Comar Kennel business services"
+    services:
+      - groomtrax
+
+  business-shared:
+    description: "Shared business services (not specific to one business)"
+    services:
+      - opensign
+
+  personal:
+    description: "Personal services (isolated from business)"
+    services:
+      - plex
+      - bittorrent
+
+---
+
+# Service Relationships
+
+relationships:
+  - service: portainer
+    depends_on: traefik
+    reason: "Accessed via reverse proxy"
+
+  - service: opensign
+    accessed_by:
+      - prettypaws
+      - comar
+    reason: "Shared contract signing authority"
+
+  - service: dialpad-bi
+    data_source: external
+    notes: "Pulls from Dialpad API"
+
+---
+
+# Notes
+
+# Services are deployed to SSDOCK (execution platform)
+# Each service belongs to a stack for logical grouping
+# Business stacks are isolated from personal stack
+# Platform stack provides infrastructure for all other stacks
+# Dependencies are tracked for proper startup order

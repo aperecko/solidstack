@@ -1,77 +1,71 @@
 # Bootstrap Module
 
-> First-time setup and dependency installation for new nodes
+This module contains scripts for bootstrapping new nodes in the SolidStack infrastructure.
 
 ## Purpose
 
-The Bootstrap module handles the initial setup of a new node, including:
-
-* Authenticating with 1Password CLI
-* Installing required dependencies (Docker, PowerShell 7+, etc.)
-* Configuring SSH access
-* Establishing node identity
-* Registering in the control plane registry
+Bootstrap scripts run during first-time setup of a node. They:
+- Authenticate the operator via 1Password CLI
+- Install required dependencies
+- Configure SSH access
+- Set up basic node identity
 
 ## Scripts (To Be Implemented)
 
 ### `Initialize-OpAuth.ps1`
-Authenticate operator via 1Password CLI, retrieve necessary credentials.
-
-### `Install-Dependencies-Linux.ps1`
-Install dependencies on Ubuntu/Debian/RHEL systems:
-* PowerShell 7+
-* Docker Engine
-* OpenSSH Server
-* 1Password CLI
-* realmd/sssd (for domain joining)
+Authenticate operator using 1Password CLI:
+- Verify `op` CLI is installed
+- Authenticate user
+- Retrieve necessary credentials for deployment
 
 ### `Install-Dependencies-Windows.ps1`
-Install dependencies on Windows Server systems:
-* PowerShell 7+ (if not present)
-* Docker Engine
-* OpenSSH Server
-* 1Password CLI
+Install dependencies on Windows nodes:
+- PowerShell 7+ (if needed)
+- Docker Engine (not Desktop)
+- OpenSSH Server
+- 1Password CLI
+
+### `Install-Dependencies-Linux.ps1`
+Install dependencies on Linux nodes:
+- PowerShell 7+ (via package manager)
+- Docker Engine (native)
+- OpenSSH Server (usually pre-installed)
+- 1Password CLI
 
 ### `Configure-SSH.ps1`
-Set up SSH server and authorized keys:
-* Ensure SSH server is running
-* Configure authorized_keys from 1Password
-* Get SSH host key fingerprint
-* Generate SSH config fragment for operator
+Set up SSH access:
+- Ensure SSH server is running
+- Configure authorized keys from 1Password
+- Get SSH host key fingerprint
+- Generate SSH config fragment for operator
 
-### `Initialize-NodeIdentity.ps1`
-Establish node identity and register in control plane:
-* Set hostname (if needed)
-* Configure static IP
-* Update registry/nodes.yaml
-* Commit changes to Git
+## Implementation Notes
 
-## Design Principles
+These scripts will be implemented after manual deployment of SSDOCK provides real-world experience with:
+- What actually needs to be installed
+- What configuration actually works
+- What dependencies are truly required
+- What can be automated vs what needs manual intervention
 
-### Idempotent
-Bootstrap scripts should be safe to run multiple times. If a dependency is already installed, skip it.
+**Document reality, not intention.**
 
-### Platform-Aware
-Detect Windows vs Linux and use appropriate installation methods.
+## Platform Support
 
-### 1Password-First
-All secrets (SSH keys, domain credentials) come from 1Password, never hardcoded.
+All scripts must work on:
+- ✅ Windows Server (PowerShell native)
+- ✅ Linux (PowerShell 7+ cross-platform)
+- ⚠️ macOS (for testing, not production)
 
-### Self-Documenting
-Each script should log what it's doing and why, with clear error messages.
+## Dependencies
 
-## Usage
+Bootstrap scripts can assume:
+- PowerShell 7+ is installed (or being installed)
+- Network connectivity
+- Git is available
+- Node has basic OS installation complete
 
-```powershell
-# Called by solidstack-deploy.ps1
-. ./modules/Bootstrap/Initialize-OpAuth.ps1
-. ./modules/Bootstrap/Install-Dependencies-Linux.ps1  # or -Windows.ps1
-. ./modules/Bootstrap/Configure-SSH.ps1
-. ./modules/Bootstrap/Initialize-NodeIdentity.ps1
-```
-
-## See Also
-
-* `/docs/LINUX-SUPPORT.md` - Linux-specific setup
-* `/registry/nodes.yaml` - Node definitions
-* `solidstack-deploy.ps1` - Main deployment script
+Bootstrap scripts should NOT assume:
+- Domain membership (may be configured during bootstrap)
+- 1Password CLI is installed (we install it)
+- Docker is installed (we install it)
+- SSH is configured (we configure it)

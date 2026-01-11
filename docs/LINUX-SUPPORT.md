@@ -1,394 +1,237 @@
-# Linux Support for SolidStack
+# Why Linux for SSDOCK
 
-> Why SSDOCK runs Ubuntu Server instead of Windows Server
+> Docker's natural habitat
 
-## Executive Summary
+## The Decision
 
-**Decision:** SSDOCK (the execution platform) will run Ubuntu Server 24.04 LTS, not Windows Server.
+**SSDOCK (the Docker execution platform) will run Ubuntu Server 24.04 LTS, not Windows Server.**
 
-**Rationale:** Docker is native to Linux, and the execution platform benefits from standard tooling, lighter resource usage, and cost savings. PowerShell 7+ runs identically on Linux, so the SolidStack control plane is unaffected.
+This document explains why.
 
 ---
 
-## The Decision Point
+## Technical Advantages
 
-When designing SSDOCK (Tier 2: Execution Platform), we had two options:
+### 1. Docker is Native on Linux
+* Docker was built for Linux
+* No Hyper-V isolation overhead
+* Better performance for Linux containers
+* All Docker documentation assumes Linux
 
-### Option A: Windows Server
-* Consistent OS across all VMs
+### 2. Simpler Installation
+```bash
+# Linux
+sudo apt install docker.io
+# Done.
+
+# Windows Server
+# 1. Enable Hyper-V
+# 2. Deal with Docker Desktop licensing (not free for enterprise)
+# 3. Or install Docker Engine (less documented path)
+# 4. Configure Hyper-V isolation for Linux containers
+```
+
+### 3. Resource Efficiency
+* Ubuntu Server: ~500MB RAM baseline
+* Windows Server Core: ~2GB RAM baseline
+* More resources available for containers
+
+### 4. Community Support
+* 99% of Docker tutorials assume Linux
+* More troubleshooting resources
+* Larger ecosystem of tools and integrations
+
+### 5. No Licensing Costs
+* Ubuntu Server: Free and open source
+* Windows Server: Requires licensing
+* Docker Desktop: Not free for enterprise use on Windows Server
+
+---
+
+## Why Not Windows?
+
+### Windows Was Considered For:
+* Consistency with SRV and SSDC (all Windows)
 * Seamless GPO integration
-* Native domain membership
-* **Requires Docker Engine** (not Docker Desktop - not free for enterprise)
+* Familiar administration
 
-### Option B: Linux (Ubuntu Server)
-* Docker is native and standard
-* Lighter resource footprint
-* No licensing costs
-* Most Docker documentation assumes Linux
-* PowerShell 7+ works identically
-
-**We chose Option B.**
+### But Linux Is Better Because:
+* Docker is fundamentally a Linux technology
+* Windows adds complexity without benefit for containerized workloads
+* Mixed OS infrastructure is common and well-supported
+* PowerShell 7+ works identically on both
 
 ---
 
-## Why Linux for the Execution Platform?
+## The Best of Both Worlds
 
-### 1. Docker is Native to Linux
+### Windows Where It Matters
+* **SRV:** Hyper-V hypervisor (Windows-native)
+* **SSDC:** Active Directory (requires Windows)
 
-**Docker was built for Linux.** Running Docker on Linux means:
-* Native container runtime (no Hyper-V isolation layer)
-* Better performance
-* Lower overhead
-* Standard configuration
+### Linux Where It's Superior
+* **SSDOCK:** Docker workloads (Linux-native)
 
-**On Windows Server:**
-* Docker Engine requires Hyper-V isolation for Linux containers
-* Extra layer of abstraction
-* More complex troubleshooting
-* Less common in self-hosting community
+**This is a proven pattern used by enterprises worldwide.**
 
-### 2. Standard Tooling and Documentation
+---
 
-**95% of Docker self-hosting guides assume Linux:**
-* Install commands: `apt install docker.io`
-* Configuration paths: `/etc/docker/`
-* Networking: Standard Linux iptables/nftables
-* Volumes: Standard Linux filesystem
+## Cross-Platform Control Plane
 
-**On Windows:**
-* Install process is more complex
-* Paths are different: `C:\ProgramData\Docker\`
-* Networking uses Windows-specific mechanisms
-* Fewer examples and guides
+### PowerShell 7+ on Linux
+```bash
+# Install on Ubuntu
+wget https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb
+sudo dpkg -i packages-microsoft-prod.deb
+sudo apt update
+sudo apt install -y powershell
 
-### 3. Lighter Resource Footprint
+# Same scripts work everywhere
+pwsh ./solidstack-deploy.ps1
+```
 
-**Ubuntu Server 24.04 LTS:**
-* Minimal install: ~1GB RAM idle
-* Fast boot time
-* Smaller disk footprint
-* Efficient for headless operation
+### Domain Integration
+* Linux can join Active Directory via realmd/sssd
+* SSDOCK will be domain-joined to solidstate.local
+* Inherits trust and can request certificates
+* SSH access works the same
 
-**Windows Server 2025 Core:**
-* ~2-3GB RAM idle
-* Larger disk footprint
-* More background services
-* Heavier resource usage
+### Unified Management
+* Same SSH key authentication
+* Same 1Password integration
+* Same SolidStack control plane
+* Same git-based configuration
 
-### 4. Cost Savings
+---
 
-**Ubuntu Server:**
-* Free and open source
-* No licensing costs
-* Community support
+## Real-World Pattern
 
-**Windows Server:**
-* Requires licensing
-* Per-core or per-VM costs
-* Even if you have licenses, it's a resource allocation
+```
+Many organizations run:
 
-### 5. PowerShell 7+ is Cross-Platform
+Infrastructure Services (Windows)
+├─ Hyper-V or VMware hosts
+├─ Active Directory
+├─ DNS and DHCP
+└─ File servers
 
-**This is the key enabler:**
+Application Services (Linux)
+├─ Docker/Kubernetes
+├─ Web applications
+├─ Databases
+└─ Development platforms
+```
 
-PowerShell 7+ runs identically on Windows, Linux, and macOS. The SolidStack control plane (written in PowerShell) works the same on both platforms.
+**You're following industry best practices.**
+
+---
+
+## What About Future Windows Workloads?
+
+### If You Need Windows Applications:
+* Create a separate Windows VM for that specific workload
+* Don't mix Windows applications with Docker on the same node
+* Keep execution platforms focused
 
 **Example:**
-```powershell
-# This works on both Windows and Linux
-$containers = docker ps --format json | ConvertFrom-Json
-Write-Host "Running containers: $($containers.Count)"
+```
+SSDOCK (Linux) → Docker containers
+SSAPP (Windows) → Native Windows apps (if needed)
 ```
 
-**Platform detection:**
-```powershell
-if ($IsLinux) {
-    # Linux-specific logic
-} elseif ($IsWindows) {
-    # Windows-specific logic
-}
-```
+### But Most Self-Hosted Services Are:
+* Linux-based containers
+* Cross-platform (Node.js, Python, Go)
+* Designed for containerization
 
 ---
 
-## Trade-offs Accepted
+## Migration Considerations
 
-### 1. Domain Integration is Slightly More Complex
+### Moving to Linux Means:
+* Learning basic Linux commands (you already know SSH)
+* Different package manager (apt vs. PowerShell)
+* Same PowerShell scripts (cross-platform)
 
-**Windows:**
-* Auto-joins via GUI or PowerShell
-* GPO applies automatically
-* Certificate auto-enrollment via GPO
+### You Already Have:
+* SSH experience (SRV and SSDC)
+* PowerShell knowledge
+* Git and 1Password CLI familiarity
 
-**Linux:**
-* Requires `realmd` and `sssd` packages
-* Manual configuration steps
-* Certificates via certbot or manual enrollment
-
-**Verdict:** Well-documented, stable, worth the trade-off.
-
-### 2. Operator Needs Basic Linux Knowledge
-
-**Required skills:**
-* SSH access (already using this)
-* Basic file navigation (`ls`, `cd`, `cat`)
-* Package management (`apt install`)
-* Service management (`systemctl`)
-
-**Verdict:** Minimal learning curve, and you're already comfortable with SSH.
-
-### 3. Different from Physical Host (SRV)
-
-**SRV is Windows** (Hyper-V requires Windows)
-**SSDOCK is Linux** (Docker prefers Linux)
-
-**Verdict:** This is actually a strength - each layer uses the best tool for its job.
+**The learning curve is minimal, and the benefits are significant.**
 
 ---
 
-## What Stays Windows?
+## Docker Desktop vs Docker Engine
 
-### SRV (Physical Server)
-**Must be Windows** because Hyper-V requires Windows Server.
+### Docker Desktop (What You Originally Planned)
+* GUI application
+* Not supported on Windows Server
+* Not free for enterprise use
+* Adds complexity
 
-**Role:** Bare hypervisor only, no business logic.
+### Docker Engine (What You'll Actually Use)
+* Native container runtime
+* Free and open source
+* Standard on Linux
+* What production servers use
 
-### SSDC (Domain Controller)
-**Should be Windows** because Active Directory and Certificate Services are Windows-native.
-
-**Role:** Identity authority, DNS, PKI.
-
-**Why not Linux alternatives like FreeIPA?**
-* Active Directory is proven and well-understood
-* Certificate Services integration is seamless
-* No compelling reason to replace for small infrastructure
-* Windows domain membership works smoothly
+**Docker Engine on Linux is the industry standard for self-hosting.**
 
 ---
 
-## Linux Distribution Choice: Ubuntu Server
+## Certificate Management
 
-### Why Ubuntu Server 24.04 LTS?
+### AD CS Integration
+* Linux systems can request certificates from AD CS
+* Via certbot with DNS validation
+* Or manual certificate enrollment
+* Automatic renewal possible
 
-**Proven and Stable:**
-* Long-term support (LTS) until 2029
-* Well-tested and widely deployed
-* Regular security updates
-
-**Best Docker Support:**
-* Docker packages in official repos
-* Extensive documentation
-* Large community
-
-**PowerShell Support:**
-* Official Microsoft packages for Ubuntu
-* Well-maintained and stable
-* Easy installation
-
-**Operator Familiarity:**
-* Most popular Linux server distribution
-* Extensive documentation and guides
-* Large community for troubleshooting
-
-### Why Not Debian, CentOS, Alpine, etc.?
-
-**Debian:** More conservative, slower updates, less Docker-focused documentation
-**CentOS/RHEL:** Different package manager (yum/dnf), less common for self-hosting
-**Alpine:** Ultra-lightweight but less compatibility, more advanced
-
-**Verdict:** Ubuntu Server is the safe, well-documented choice.
+### Trust Inheritance
+* Domain-joined Linux trusts AD certificate authority
+* Same PKI infrastructure
+* No separate certificate management
 
 ---
 
-## Implementation Details
+## Operational Reality
 
-### SSDOCK Specifications
+### What Changes:
+* Package installation: `apt` instead of Windows Package Manager
+* Service management: `systemctl` instead of Windows Services
+* File paths: `/opt/` instead of `C:\`
 
-```yaml
-VM Name: SSDOCK
-OS: Ubuntu Server 24.04 LTS
-Resources:
-  CPU: 4 cores
-  RAM: 12GB
-  Disk: 200GB
-Network:
-  IP: 192.168.69.10 (static)
-  Domain: solidstate.local
-Services:
-  - Docker Engine (native)
-  - PowerShell 7+
-  - OpenSSH Server
-  - realmd/sssd (for AD integration)
-```
-
-### Installation Process
-
-1. **Create VM** on SRV via Hyper-V
-2. **Install Ubuntu Server 24.04** from ISO
-3. **Configure networking** (static IP: 192.168.69.10)
-4. **Install dependencies:**
-   * Docker Engine
-   * PowerShell 7+
-   * realmd/sssd
-   * 1Password CLI
-5. **Join domain** via `realm join solidstate.local`
-6. **Deploy SolidStack** via `solidstack-deploy.ps1`
+### What Stays the Same:
+* PowerShell syntax and scripts
+* SSH access and key management
+* Git workflows
+* 1Password integration
+* Docker commands and compose files
 
 ---
 
-## Cross-Platform SolidStack Design
+## The Bottom Line
 
-### Platform-Agnostic Core
+**Linux for SSDOCK is:**
+* ✅ More standard for Docker workloads
+* ✅ Better documented and supported
+* ✅ More resource-efficient
+* ✅ Free and open source
+* ✅ Better performing for containers
+* ✅ Industry best practice
 
-**SolidStack control plane (PowerShell) works on both:**
-
-```powershell
-# Platform detection
-$Platform = if ($IsWindows) { "Windows" } 
-            elseif ($IsLinux) { "Linux" } 
-            else { throw "Unsupported" }
-
-# Platform-specific modules
-if ($IsLinux) {
-    . ./modules/Bootstrap/Install-Dependencies-Linux.ps1
-} else {
-    . ./modules/Bootstrap/Install-Dependencies-Windows.ps1
-}
-
-# Platform-agnostic logic
-docker ps
-Get-SolidStackStatus
-```
-
-### Future Flexibility
-
-**This design allows:**
-* Adding more Linux nodes (additional execution platforms)
-* Adding Windows nodes if needed (specialized workloads)
-* Mixed infrastructure (best tool for each job)
-* Easy migration between platforms (same control plane)
+**Not a compromise—it's the better choice for a Docker execution platform.**
 
 ---
 
-## Performance Comparison
+## Next Steps
 
-### Docker Container Performance
+1. Create SSDOCK VM with Ubuntu Server 24.04 LTS
+2. Configure static IP (192.168.69.10)
+3. Join to solidstate.local domain
+4. Install Docker Engine and PowerShell 7+
+5. Deploy SolidStack control plane
+6. Begin container deployments
 
-**Linux (native):**
-* Direct kernel integration
-* No isolation overhead
-* Full performance
-
-**Windows (Hyper-V isolation):**
-* Additional VM layer for Linux containers
-* ~10-20% performance overhead
-* More complex networking
-
-**Verdict:** Linux is faster for containerized workloads.
-
-### Resource Usage (Idle)
-
-**Ubuntu Server 24.04:**
-* RAM: ~1GB
-* CPU: <5%
-* Disk: ~10GB
-
-**Windows Server 2025 Core:**
-* RAM: ~2-3GB
-* CPU: <10%
-* Disk: ~20GB
-
-**Verdict:** Linux is more efficient.
-
----
-
-## Operational Considerations
-
-### SSH Access
-
-**Both platforms support SSH:**
-* Windows: OpenSSH Server (installed separately)
-* Linux: OpenSSH Server (built-in)
-
-**Verdict:** Identical operator experience.
-
-### PowerShell Experience
-
-**Identical across platforms:**
-* Same cmdlets
-* Same modules
-* Same scripts
-* Platform detection available via `$IsWindows`, `$IsLinux`
-
-**Verdict:** No retraining needed.
-
-### Updates and Maintenance
-
-**Ubuntu Server:**
-* `apt update && apt upgrade`
-* Automatic security updates (optional)
-* Minimal disruption
-
-**Windows Server:**
-* Windows Update
-* Requires reboots more frequently
-* Patch Tuesday cycle
-
-**Verdict:** Linux is simpler for updates.
-
----
-
-## Migration Path
-
-### If You Need to Switch Later
-
-**Linux → Windows:**
-* Export container definitions (Docker Compose files)
-* Rebuild SSDOCK as Windows VM
-* Re-run `solidstack-deploy.ps1` (Windows mode)
-* Restore data volumes
-
-**Windows → Linux:**
-* Same process, reverse direction
-
-**Key insight:** Because SolidStack is the control plane and containers are portable, the underlying OS can change without losing work.
-
----
-
-## Summary
-
-### Why Linux for SSDOCK?
-
-✅ Docker is native and standard
-✅ Better performance for containers
-✅ Lighter resource footprint
-✅ No licensing costs
-✅ Standard documentation and community
-✅ PowerShell 7+ works identically
-✅ Simpler updates and maintenance
-
-### What This Means
-
-* **SSDOCK will be Ubuntu Server 24.04 LTS**
-* **PowerShell control plane works the same**
-* **Domain integration via realmd/sssd**
-* **Standard Docker tooling and guides apply**
-* **Lower resource usage and cost**
-
-### The Big Picture
-
-```
-Layer 0: Physical
-├─ SRV (Windows) - Hyper-V host
-
-Tier 1: Identity
-├─ SSDC (Windows) - Active Directory, DNS, PKI
-
-Tier 2: Execution
-├─ SSDOCK (Linux) - Docker, PowerShell, SolidStack
-
-Tier 3: Workloads
-└─ Containers (Linux) - Your services
-```
-
-**Each layer uses the best tool for its job.**
+**You're building it right.** 🎯

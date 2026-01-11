@@ -1,5 +1,10 @@
 # SolidStack Node Registry
-# Source of truth for infrastructure
+# Version: 0.1.0
+# Last Updated: 2026-01-11
+
+---
+
+# Physical Layer (Tier 0)
 
 nodes:
   SRV:
@@ -8,31 +13,31 @@ nodes:
     platform: windows
     os: "Windows Server 2025"
     role: hyper-v-host-only
-    domain: null
     access:
       local_ip: 192.168.69.4
       tailscale_ip: null
       ssh_port: 22
-      ssh_fingerprint: "SHA256:IKNSl0FHk+gN8dMwQ3THnp+Hf3bm7HwTZ9vLM2xcmtE"
+      ssh_fingerprint: null
     capabilities:
       - hyper-v
-    services: []
-    last_deployed: 2026-01-10T18:00:00Z
-    deployed_by: test@mac
-    notes: "Physical server, Hyper-V host only, no business logic"
+    notes: "Physical server. Hypervisor only. No business logic."
+    last_deployed: null
+    deployed_by: null
+
+# Tier 1 — Identity & Authority
 
   SSDC:
     type: identity-authority
     tier: 1
     platform: windows
     os: "Windows Server 2025 Core"
-    role: domain-controller
     domain: solidstate.local
+    role: primary-domain-controller
     access:
       local_ip: 192.168.69.5
       tailscale_ip: null
       ssh_port: 22
-      ssh_fingerprint: "SHA256:kC+pHU0cGSZxMr5aPV+d7QxGRlYqXE5j3W9rT8vN2pA"
+      ssh_fingerprint: null
     capabilities:
       - active-directory
       - dns-server
@@ -41,38 +46,89 @@ nodes:
     services:
       - active-directory
       - dns
-      - ad-cs
-    last_deployed: 2026-01-10T19:30:00Z
+      - ad-certificate-services
+    notes: "Changes slowly. Highly trusted. Defines identity and security boundaries."
+    last_deployed: 2026-01-10T18:45:00Z
     deployed_by: test@mac
-    notes: "Primary DC, DNS authority, internal PKI, changes slowly"
+
+# Tier 2 — Execution Platform
 
   SSDOCK:
     type: execution-platform
     tier: 2
     platform: linux
     os: "Ubuntu Server 24.04 LTS"
-    role: docker-host
     domain: solidstate.local
+    role: docker-host
     access:
       local_ip: 192.168.69.10
       tailscale_ip: null
       ssh_port: 22
-      ssh_fingerprint: null  # Will be populated during deployment
-    capabilities: []  # Will be populated during deployment
-    services: []      # Will be populated as services are deployed
+      ssh_fingerprint: null
+    capabilities: []  # Populated during deployment
+    services: []      # Populated as services are deployed
+    notes: "Safe to experiment. Easy to rebuild. Where business logic lives (in containers)."
     last_deployed: null
     deployed_by: null
-    notes: "Execution platform, Docker host, safe to experiment and rebuild"
 
-# Future nodes (Phase 2 - not yet deployed)
-# 
-# SRV-DC2:
-#   type: identity-authority
-#   tier: 1
-#   platform: windows
-#   os: "Windows Server 2025 Core"
-#   role: secondary-domain-controller
-#   domain: solidstate.local
-#   access:
-#     local_ip: 192.168.69.6
-#   notes: "Secondary DC for redundancy"
+# Tier 3 — Redundancy (Phase 2 - Deferred)
+
+  SSDC2:
+    type: identity-authority
+    tier: 1
+    platform: windows
+    os: "Windows Server 2025 Core"
+    domain: solidstate.local
+    role: secondary-domain-controller
+    access:
+      local_ip: 192.168.69.6
+      tailscale_ip: null
+      ssh_port: 22
+      ssh_fingerprint: null
+    capabilities:
+      - active-directory
+      - dns-server
+      - domain-controller
+    status: planned
+    notes: "Phase 2. Secondary DC for redundancy. Not yet deployed."
+    last_deployed: null
+    deployed_by: null
+
+---
+
+# Network Infrastructure (Referenced, Not Managed)
+
+network:
+  unifi:
+    type: network-hardware
+    role: physical-network-fabric
+    components:
+      - switching
+      - routing
+      - wireless-access
+    notes: "Physical network. Documented but not managed by SolidStack."
+
+  tailscale:
+    type: mesh-network
+    role: secure-access-fabric
+    notes: "Private mesh networking. Configured per-node during deployment."
+
+  cloudflare:
+    type: public-edge
+    role: dns-proxy-ingress
+    notes: "Public boundary. External service."
+
+---
+
+# External Resources (Referenced)
+
+external:
+  stablepoint:
+    type: hosting-provider
+    role: external-compute
+    notes: "External node class in SolidStack."
+
+  onepasword:
+    type: secrets-manager
+    role: authoritative-identity-source
+    notes: "SSH keys, tokens, credentials. External authority."

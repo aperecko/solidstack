@@ -1,118 +1,114 @@
 # Alignment Module
 
-> Ensure nodes stay synchronized with desired state
+This module contains scripts for aligning nodes with their registry definitions.
 
 ## Purpose
 
-The Alignment module handles ongoing synchronization and health checking:
-
-* Reading node definitions from registry
-* Detecting configuration drift
-* Applying corrections to bring node back to desired state
-* Updating registry with current state
-* Verifying health and connectivity
+Alignment scripts run after bootstrap (and can be re-run anytime) to:
+- Check node configuration against registry
+- Detect and fix configuration drift
+- Update node metadata in registry
+- Verify node health and capabilities
 
 ## Scripts (To Be Implemented)
 
 ### `Test-NodeConfiguration.ps1`
-Compare actual state to desired state from registry:
-* Check installed dependencies
-* Verify services are running
-* Check domain membership
-* Validate SSH configuration
-* Test connectivity to other nodes
+Compare current node state with registry definition:
+- Check installed packages match capabilities
+- Verify network configuration
+- Validate domain membership
+- Check service status
 
 ### `Sync-Configuration.ps1`
-Apply configuration changes to match registry:
-* Update services if versions changed
-* Reconfigure settings if drifted
-* Fix broken dependencies
-* Restart services if needed
+Apply registry definition to node:
+- Install missing dependencies
+- Configure services
+- Update domain membership
+- Apply security settings
 
 ### `Register-Node.ps1`
 Update registry with current node state:
-* Get current capabilities (what's installed)
-* Get running services (what's active)
-* Get SSH fingerprint
-* Get Tailscale IP (if on mesh)
-* Update registry/nodes.yaml
-* Commit to Git
-
-### `Join-Domain-Linux.ps1`
-Join a Linux node to Active Directory domain:
-* Install realmd/sssd
-* Discover domain
-* Join using credentials from 1Password
-* Configure home directory creation
-* Verify membership
+- Record deployment timestamp
+- Update SSH fingerprint
+- Record capabilities discovered during bootstrap
+- Generate and commit SSH config fragment
+- Push changes to git
 
 ### `Join-Domain-Windows.ps1`
-Join a Windows node to Active Directory domain:
-* Use Add-Computer cmdlet
-* Credentials from 1Password
-* Handle reboot requirement
-* Verify membership
+Join Windows node to Active Directory:
+- Use credentials from 1Password
+- Join solidstate.local domain
+- Configure DNS to point to SSDC
+- Verify domain membership
 
-### `Test-NodeHealth.ps1`
-Comprehensive health check:
-* Disk space
-* Memory usage
-* Service status
-* Network connectivity
-* Certificate validity
-* Docker status (if applicable)
+### `Join-Domain-Linux.ps1`
+Join Linux node to Active Directory:
+- Install realmd, sssd, adcli
+- Discover domain via DNS
+- Join using domain administrator credentials
+- Configure SSSD for authentication
+- Enable home directory creation
 
-## Design Principles
-
-### Detect Before Fixing
-Always test current state before making changes. Report what would change.
-
-### Safe Defaults
-If uncertain, ask for confirmation rather than making destructive changes.
-
-### Audit Trail
-Log all changes made, what was changed, and why.
-
-### Git Integration
-After making changes, update registry and commit to provide audit trail.
-
-## Usage
+## Realignment Workflow
 
 ```powershell
-# Called by solidstack-deploy.ps1 with -Realign flag
+# Check for drift
+$drift = Test-NodeConfiguration -NodeType SSDOCK
 
-# Test current state
-$drifts = Test-NodeConfiguration
-
-# Fix any issues
-if ($drifts.Count -gt 0) {
-    Sync-Configuration -Drifts $drifts
+if ($drift.HasDrift) {
+    # Fix configuration
+    Sync-Configuration -NodeType SSDOCK -Changes $drift.Changes
+    
+    # Update registry
+    Register-Node -NodeType SSDOCK
 }
-
-# Update registry with current state
-Register-Node
-
-# Verify health
-Test-NodeHealth
 ```
 
-## Realignment Process
+## Implementation Notes
 
-```powershell
-# On any node
-pwsh ./solidstack-deploy.ps1 -Realign
+These scripts will be implemented after manual deployment provides experience with:
+- What configuration actually needs to be checked
+- What drift actually occurs in practice
+- What can be automatically fixed vs manual intervention
+- What should trigger alerts vs silent correction
 
-# This will:
-# 1. Pull latest registry from Git
-# 2. Compare actual state to desired state
-# 3. Fix any drift (with confirmation)
-# 4. Update registry with current state
-# 5. Push changes to Git
-# 6. Report health status
+**Document reality, not intention.**
+
+## Platform Differences
+
+### Windows Nodes
+- Domain join via `Add-Computer`
+- GPO applies automatically
+- Certificates via auto-enrollment
+- Windows Update configuration
+
+### Linux Nodes
+- Domain join via `realm join`
+- SSSD for authentication
+- Certificates via certbot or manual
+- Package updates via apt/yum
+
+## Registry Integration
+
+All alignment scripts read from and write to `registry/nodes.yaml`:
+
+```yaml
+SSDOCK:
+  last_deployed: 2026-01-11T16:45:00Z
+  deployed_by: test@mac
+  capabilities:
+    - docker-engine
+    - powershell-7
+    - domain-joined
+  access:
+    ssh_fingerprint: "SHA256:..."
 ```
 
-## See Also
+## Safety
 
-* `/registry/nodes.yaml` - Node definitions (desired state)
-* `/modules/Bootstrap/` - Initial setup modules
-* `solidstack-deploy.ps1` - Main deployment script
+Alignment scripts must:
+- ✅ Be idempotent (safe to run multiple times)
+- ✅ Show what they're changing before changing it
+- ✅ Create backups before modifying configuration
+- ✅ Fail gracefully with clear error messages
+- ✅ Never remove configuration without confirmation

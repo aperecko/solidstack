@@ -3,6 +3,7 @@
 > A cross-platform control plane for multi-tier self-hosted infrastructure
 
 [![PowerShell 7+](https://img.shields.io/badge/PowerShell-7%2B-blue.svg)](https://github.com/PowerShell/PowerShell)
+[![Platform: Cross-Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-blue)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## What is SolidStack?
@@ -15,226 +16,149 @@ SolidStack is a **PowerShell-based control plane** for managing tiered self-host
 - A deployment system that documents reality, not intention
 - A calm, grounded approach to infrastructure management
 
-## Architecture Overview
-
+**Architecture:**
 ```
 Layer 0: Physical Infrastructure
 ├─ SRV (Windows Server - Hyper-V host)
 └─ UniFi (Network fabric)
 
 Tier 1: Identity & Authority (Slow-Changing)
-├─ SSDC (Windows Server Core VM)
-│   ├─ Active Directory Domain Services
-│   ├─ DNS Server
-│   └─ Certificate Authority (AD CS)
+└─ SSDC (Windows Server Core VM)
+    ├─ Active Directory
+    ├─ DNS Server
+    └─ Certificate Authority
 
 Tier 2: Execution Platform (Fast-Changing, Safe to Rebuild)
-├─ SSDOCK (Ubuntu Server VM)
-│   ├─ Docker Engine
-│   ├─ PowerShell 7+
-│   ├─ SolidStack control plane
-│   └─ Containerized services (Traefik, Portainer, apps)
-
-Tier 3: Redundancy (Phase 2)
-└─ Secondary DC, geographic replication (explicitly deferred)
+└─ SSDOCK (Ubuntu Server VM)
+    ├─ Docker Engine
+    ├─ PowerShell 7+
+    └─ Containerized services
 ```
 
-See [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) for details.
+See [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) for the complete architecture.
+
+**Perfect for:**
+- Managing multi-tier virtualized infrastructure
+- Clear separation of concerns (identity vs execution vs workloads)
+- Cross-platform deployments (Windows and Linux)
+- Neurodivergent-friendly operations (low cognitive load, clear boundaries)
 
 ## Core Principles
 
 1. **Prevent redundant workloads** - One system per responsibility
-2. **Document reality, not intention** - Registry reflects what actually exists
+2. **Document reality, not intention** - Registry reflects what actually exists  
 3. **Always answer "where do I fix this?"** - Clear responsibility boundaries
 4. **Stay grounded under failure** - Calm recovery > perfect uptime
 
-See [docs/PRINCIPLES.md](docs/PRINCIPLES.md) for complete philosophy.
-
-## Key Features
-
-- 🏗️ **Multi-tier architecture** - Physical, identity, execution, workloads
-- 📋 **Registry-based** - Git-tracked source of truth for infrastructure
-- 🔄 **Idempotent deployment** - Safe to run repeatedly, detects drift
-- 🐧 **Cross-platform** - Works on Windows and Linux (PowerShell 7+)
-- 🔐 **1Password-first** - Secrets from authoritative source, never hardcoded
-- 🔑 **SSH everywhere** - Key-based authentication, mesh networking ready
-- 📝 **Everything logged** - Timestamped audit trail
-- 🧘 **Human-centered** - Low cognitive load, designed for calm operation
+See [docs/PRINCIPLES.md](docs/PRINCIPLES.md) for the complete design philosophy.
 
 ## Quick Start
 
-### For New Infrastructure
+### Prerequisites
+- A Hyper-V host (Windows Server) or other hypervisor
+- At least one VM for execution platform
+- PowerShell 7+ on your management machine
+- 1Password CLI for secrets management
 
+### Bootstrap a New Node
+
+**On Ubuntu Server (SSDOCK):**
 ```bash
-# 1. Clone the repository
+# Clone repository
 git clone https://github.com/aperecko/solidstack.git
 cd solidstack
 
-# 2. On a new Linux node (Ubuntu/Debian)
+# Run bootstrap (installs PowerShell 7+ if needed)
 sudo bash bootstrap-linux.sh -NodeType SSDOCK
 
-# 3. On a new Windows node
-pwsh ./solidstack-deploy.ps1 -NodeType SSDC
-
-# 4. The script will:
-#    - Install PowerShell 7+ (if needed)
-#    - Install dependencies (Docker, SSH, etc.)
-#    - Configure authentication via 1Password
-#    - Join domain (if applicable)
-#    - Register node in control plane
-#    - Deploy services (if applicable)
+# Or if PowerShell is already installed
+pwsh ./solidstack-deploy.ps1 -NodeType SSDOCK
 ```
 
-### For Existing Nodes (Realignment)
+**On Windows Server:**
+```powershell
+# Clone repository
+git clone https://github.com/aperecko/solidstack.git
+cd solidstack
 
-```bash
-# Pull latest registry
+# Run bootstrap
+pwsh ./solidstack-deploy.ps1 -NodeType SSDC
+```
+
+### Realign Existing Node
+
+```powershell
+# Pull latest changes
 git pull
 
-# Realign node with current state
+# Realign node configuration
 pwsh ./solidstack-deploy.ps1 -NodeType SSDOCK -Realign
-
-# This will:
-# - Detect configuration drift
-# - Fix any issues
-# - Update registry with current state
-# - Commit changes back to Git
 ```
-
-## Project Structure
-
-```
-solidstack/
-├─ README.md (this file)
-├─ solidstack-deploy.ps1 (main deployment script)
-├─ bootstrap-linux.sh (Linux wrapper, installs pwsh)
-│
-├─ docs/
-│   ├─ PRINCIPLES.md (design philosophy)
-│   ├─ INFRASTRUCTURE.md (tier model explained)
-│   ├─ LINUX-SUPPORT.md (why Linux for execution platform)
-│   └─ [legacy docs...]
-│
-├─ registry/
-│   ├─ nodes.yaml (infrastructure nodes)
-│   ├─ services.yaml (what runs where)
-│   ├─ relationships.yaml (dependencies)
-│   └─ ssh-config.d/ (generated SSH configs)
-│
-├─ modules/
-│   ├─ Bootstrap/ (first-time setup)
-│   └─ Alignment/ (drift detection & correction)
-│
-├─ src/ (legacy: service orchestration)
-└─ stack/ (legacy: docker compose files)
-```
-
-## The Registry (Source of Truth)
-
-The `registry/` directory contains YAML files that define:
-
-- **nodes.yaml** - All infrastructure nodes (VMs, physical servers)
-- **services.yaml** - All services and where they run
-- **relationships.yaml** - Dependencies and trust boundaries
-
-**The registry is:**
-- ✅ Version-controlled (Git)
-- ✅ Human-readable (YAML)
-- ✅ Machine-parseable (PowerShell + ConvertFrom-Yaml)
-- ✅ Updated automatically (by deployment scripts)
-- ✅ The source of truth (reality, not intention)
-
-See [registry/README.md](registry/README.md) for details.
-
-## Platform Support
-
-### Windows Server
-- ✅ Active Directory (identity authority)
-- ✅ Hyper-V (hypervisor)
-- ✅ PowerShell 7+ (native)
-- ✅ Docker Engine (via native install, not Docker Desktop)
-
-### Linux (Ubuntu Server 24.04 LTS)
-- ✅ Docker Engine (native, standard)
-- ✅ PowerShell 7+ (installed automatically)
-- ✅ Domain joining (via realmd/sssd)
-- ✅ SSH (built-in)
-
-See [docs/LINUX-SUPPORT.md](docs/LINUX-SUPPORT.md) for rationale.
-
-## Design Philosophy
-
-**SolidStack is designed for:**
-- Low memory burden (easy to context-switch)
-- Recovery after breaks (clear documentation)
-- Safe experimentation (tier 2 is safe to rebuild)
-- Future delegation (clear responsibility boundaries)
-- Neurodivergent-friendly operation (calm, not alarming)
-
-**If a design choice increases anxiety, noise, or cognitive load, it is considered a regression.**
-
-## What SolidStack IS
-
-- ✅ A control plane
-- ✅ A registry of services and relationships
-- ✅ A guide to "where do I fix this?"
-- ✅ Infrastructure-as-code
-
-## What SolidStack IS NOT
-
-- ❌ An application (it orchestrates applications)
-- ❌ A monitoring platform (it documents what exists)
-- ❌ A dashboard-first system (it's code-first)
-- ❌ Business logic (it manages business systems)
 
 ## Current Status
 
-### ✅ Completed
-- Multi-tier architecture design
-- Registry schema and structure
-- Cross-platform module design
-- Documentation (principles, infrastructure)
+**Phase 1: Foundation** (In Progress)
+- ✅ Core principles documented
+- ✅ Multi-tier architecture defined
+- ✅ Cross-platform support designed
+- ✅ Registry structure created
+- 🎯 SSDOCK deployment (next step)
+- ⏳ Bootstrap automation (after manual experience)
 
-### 🚧 In Progress
-- SSDOCK deployment (Ubuntu VM creation)
-- Bootstrap module implementation
-- Alignment module implementation
+The bootstrap scripts (`solidstack-deploy.ps1`, etc.) are currently stubs. We're deploying SSDOCK manually first to document what actually works, then implementing the automation based on real experience.
 
-### 📋 Planned
-- Traefik deployment (reverse proxy, HTTPS)
-- Portainer deployment (Docker management UI)
-- Backup automation (Restic)
-- Tailscale integration (mesh networking)
+**This is intentional:** Document reality, not intention.
+
+## Documentation
+
+### Core Concepts
+- [PRINCIPLES.md](docs/PRINCIPLES.md) - Design philosophy and boundaries
+- [INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) - Multi-tier architecture  
+- [LINUX-SUPPORT.md](docs/LINUX-SUPPORT.md) - Why Linux for execution platform
+
+### Registry
+- [registry/README.md](registry/README.md) - How the registry works
+- [registry/nodes.yaml](registry/nodes.yaml) - Node definitions
+- [registry/services.yaml](registry/services.yaml) - Service definitions
+
+### Implementation (Original Docker Orchestration)
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - Original design (Docker Desktop focus)
+- [src/](src/) - Original PowerShell commands (being refactored)
+- [ROADMAP.md](docs/ROADMAP.md) - Original roadmap (being updated)
+
+## Project Evolution
+
+This repository started as a Docker orchestration tool for Windows Server. It's evolving into a full control plane for multi-tier infrastructure:
+
+**Original scope:**
+- Docker Compose management on Windows
+- Logging and status reporting  
+- Service lifecycle management
+
+**Current scope:**
+- Multi-tier infrastructure (hypervisor → identity → execution)
+- Cross-platform (Windows and Linux)
+- Registry-based node tracking
+- Bootstrap and alignment automation
+- Clear separation of concerns
+
+The `src/` directory contains the original implementation. The `modules/` directory will contain the new registry-based control plane once we implement it based on real deployment experience.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development workflow.
+This is currently a personal infrastructure project. If you're interested in using or contributing:
 
-**Key points:**
-- Documentation is critical (explain the "why")
-- Test on real infrastructure (not just in theory)
-- Idempotent scripts (safe to run repeatedly)
-- Clear error messages (operator-friendly)
+1. Read [docs/PRINCIPLES.md](docs/PRINCIPLES.md) to understand the philosophy
+2. Review [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) for architecture
+3. Open an issue to discuss your use case or idea
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License - see [LICENSE](LICENSE) for details
 
 ## Acknowledgments
 
-- Built for small-to-medium self-hosting
-- Designed with neurodivergent-friendly principles
+- Built for calm, grounded infrastructure operations
+- Designed with neurodivergent operators in mind  
+- Focused on reducing cognitive load and preventing burnout
 - AI-assisted development friendly
-- Inspired by calm technology principles
-
-## Learn More
-
-- [docs/PRINCIPLES.md](docs/PRINCIPLES.md) - Design philosophy and scope boundaries
-- [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) - Tier model and architecture
-- [docs/LINUX-SUPPORT.md](docs/LINUX-SUPPORT.md) - Why Linux for execution platform
-- [registry/README.md](registry/README.md) - Registry structure and usage
-- [docs/ROADMAP.md](docs/ROADMAP.md) - Development roadmap
-
----
-
-**SolidStack: A system that explains itself.**
